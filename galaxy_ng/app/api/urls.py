@@ -3,6 +3,7 @@ from django.urls import include, path
 
 from . import views
 from .ui import urls as ui_urls
+from .v1 import urls as v1_urls
 from .v3 import urls as v3_urls
 
 DEFAULT_DISTRIBUTION_BASE_PATH = settings.GALAXY_API_DEFAULT_DISTRIBUTION_BASE_PATH.strip('/')
@@ -22,11 +23,7 @@ v3_urlpatterns = [
     # use the hard coded 'default' distro (ie, 'automation-hub')
     path(
         "",
-        include((v3_urls, app_name), namespace='default-content'),
-        {
-            'no_path_specified': True,
-            'path': DEFAULT_DISTRIBUTION_BASE_PATH,
-        }
+        include(v3_urls),
     ),
 ]
 
@@ -41,26 +38,30 @@ content_v3_urlpatterns = [
 
 content_urlpatterns = [
     path("content/",
-         include((content_v3_urlpatterns, app_name), namespace="v3")),
+         include(content_v3_urlpatterns)),
 
     path("content/<str:path>/",
          views.ApiRootView.as_view(),
-         name="root"),
+         name="content-root"),
 
     # This can be removed when ansible-galaxy stops appending '/api' to the
     # urls.
     path("content/<str:path>/api/",
          views.ApiRedirectView.as_view(),
          name="api-redirect",
-         kwargs={"reverse_url_name": "galaxy:api:content:root"}),
+         kwargs={"reverse_url_name": "galaxy:api:v3:content-root"}),
+]
+
+v3_combined = [
+    path("v3/", include(v3_urlpatterns)),
+
+    path("", include(content_urlpatterns)),
 ]
 
 urlpatterns = [
-    path("v3/", include((v3_urlpatterns, app_name), namespace="v3")),
-
     path("_ui/", include((ui_urls, app_name), namespace="ui")),
 
-    path("", include((content_urlpatterns, app_name), namespace='content')),
+    path("", include((v3_combined, app_name), namespace='v3')),
 
     path("",
          views.ApiRootView.as_view(),
@@ -82,3 +83,6 @@ urlpatterns = [
          name="api-redirect",
          kwargs={"reverse_url_name": "galaxy:api:root"}),
 ]
+
+if settings.GALAXY_ENABLE_LEGACY_ROLES:
+    urlpatterns.insert(1, path("v1/", include((v1_urls, app_name), namespace="v1")))

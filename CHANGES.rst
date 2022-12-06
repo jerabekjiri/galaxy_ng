@@ -13,6 +13,274 @@ Changelog
 
 .. towncrier release notes start
 
+4.6.0 (2022-10-13)
+Features
+--------
+
+- Change 'requires_ansible' to use custom ansible ver spec instead of semver
+  `AAH-981 <https://issues.redhat.com/browse/AAH-981>`_
+- Allow signature upload, expose public_keys on API
+  `AAH-1055 <https://issues.redhat.com/browse/AAH-1055>`_
+- Add option to log collection downloads.
+  `AAH-1118 <https://issues.redhat.com/browse/AAH-1118>`_
+- Add Container Signing Service
+  `AAH-1358 <https://issues.redhat.com/browse/AAH-1358>`_
+- Output an error if no changelog.rst file is present in the root of the collection
+  `AAH-1460 <https://issues.redhat.com/browse/AAH-1460>`_
+- Changed import_collection to work off of a fileobject without requiring an filesystem entry
+  `AAH-1506 <https://issues.redhat.com/browse/AAH-1506>`_
+- Allow set of GALAXY_MINIMUM_PASSWORD_LENGTH for AUTH_PASSWORD_VALIDATORS
+  `AAH-1531 <https://issues.redhat.com/browse/AAH-1531>`_
+- Serve all collections at synclist distro, stop curation
+  `AAH-1540 <https://issues.redhat.com/browse/AAH-1540>`_
+- Serve the pulp api at /api/automation-hub/pulp/api/v3/
+  `AAH-1544 <https://issues.redhat.com/browse/AAH-1544>`_
+- Add LDAP integration
+  `AAH-1593 <https://issues.redhat.com/browse/AAH-1593>`_
+- Make /api/galaxy/pulp/api/v3/ part of the supported API.
+  `AAH-1681 <https://issues.redhat.com/browse/AAH-1681>`_
+- Add validated content repo.
+  `AAH-1943 <https://issues.redhat.com/browse/AAH-1943>`_
+
+
+Bugfixes
+--------
+
+- Fixes forbidden message when installing from ansible-galaxy a public collection and the settings has enable unautheticated download.
+  `AAH-1386 <https://issues.redhat.com/browse/AAH-1386>`_
+- Fix 500 error when listing Group Roles
+  `AAH-1595 <https://issues.redhat.com/browse/AAH-1595>`_
+- Redirect requests from /pulp/api/v3/ to /api/galaxy/pulp/api/v3/.
+  `AAH-1646 <https://issues.redhat.com/browse/AAH-1646>`_
+- Fix feature flags for signing
+  `AAH-1690 <https://issues.redhat.com/browse/AAH-1690>`_
+- add signature upload statements
+  `AAH-1700 <https://issues.redhat.com/browse/AAH-1700>`_
+- Remove guardian foreign key contraints in rbac migration
+  `AAH-1765 <https://issues.redhat.com/browse/AAH-1765>`_
+- Allow roles assignment to group with `change_group` permission
+  `AAH-1766 <https://issues.redhat.com/browse/AAH-1766>`_
+- Forbid user with change_user perms to update superuser
+  `AAH-1791 <https://issues.redhat.com/browse/AAH-1791>`_
+- Return only the sign state of the latest version of a collection.
+  `AAH-1794 <https://issues.redhat.com/browse/AAH-1794>`_
+- Remove conditional `view_task`.
+  `AAH-1805 <https://issues.redhat.com/browse/AAH-1805>`_
+- Fix a bug preventing keycloak SSO users from logging in to the container registry with podman/docker login.
+  `AAH-1921 <https://issues.redhat.com/browse/AAH-1921>`_
+- Disable signatures in the v3 collection detail serializer
+  `AAH-1937 <https://issues.redhat.com/browse/AAH-1937>`_
+
+
+Misc
+----
+
+- `AAH-1092 <https://issues.redhat.com/browse/AAH-1092>`_, `AAH-1093 <https://issues.redhat.com/browse/AAH-1093>`_, `AAH-1127 <https://issues.redhat.com/browse/AAH-1127>`_, `AAH-1128 <https://issues.redhat.com/browse/AAH-1128>`_, `AAH-1360 <https://issues.redhat.com/browse/AAH-1360>`_, `AAH-1371 <https://issues.redhat.com/browse/AAH-1371>`_, `AAH-1443 <https://issues.redhat.com/browse/AAH-1443>`_, `AAH-1449 <https://issues.redhat.com/browse/AAH-1449>`_, `AAH-1468 <https://issues.redhat.com/browse/AAH-1468>`_, `AAH-1492 <https://issues.redhat.com/browse/AAH-1492>`_, `AAH-1493 <https://issues.redhat.com/browse/AAH-1493>`_, `AAH-1526 <https://issues.redhat.com/browse/AAH-1526>`_, `AAH-1530 <https://issues.redhat.com/browse/AAH-1530>`_, `AAH-1556 <https://issues.redhat.com/browse/AAH-1556>`_, `AAH-1585 <https://issues.redhat.com/browse/AAH-1585>`_, `AAH-1586 <https://issues.redhat.com/browse/AAH-1586>`_, `AAH-1587 <https://issues.redhat.com/browse/AAH-1587>`_, `AAH-1588 <https://issues.redhat.com/browse/AAH-1588>`_, `AAH-1589 <https://issues.redhat.com/browse/AAH-1589>`_, `AAH-1608 <https://issues.redhat.com/browse/AAH-1608>`_, `AAH-1609 <https://issues.redhat.com/browse/AAH-1609>`_, `AAH-1643 <https://issues.redhat.com/browse/AAH-1643>`_, `AAH-1654 <https://issues.redhat.com/browse/AAH-1654>`_, `AAH-1697 <https://issues.redhat.com/browse/AAH-1697>`_, `AAH-1712 <https://issues.redhat.com/browse/AAH-1712>`_, `AAH-1737 <https://issues.redhat.com/browse/AAH-1737>`_, `AAH-1738 <https://issues.redhat.com/browse/AAH-1738>`_, `AAH-1757 <https://issues.redhat.com/browse/AAH-1757>`_, `AAH-1768 <https://issues.redhat.com/browse/AAH-1768>`_, `AAH-1770 <https://issues.redhat.com/browse/AAH-1770>`_, `AAH-1780 <https://issues.redhat.com/browse/AAH-1780>`_, `AAH-1781 <https://issues.redhat.com/browse/AAH-1781>`_, `AAH-1788 <https://issues.redhat.com/browse/AAH-1788>`_, `AAH-1796 <https://issues.redhat.com/browse/AAH-1796>`_, `AAH-1821 <https://issues.redhat.com/browse/AAH-1821>`_, `AAH-1828 <https://issues.redhat.com/browse/AAH-1828>`_, `AAH-1846 <https://issues.redhat.com/browse/AAH-1846>`_, `AAH-1850 <https://issues.redhat.com/browse/AAH-1850>`_, `AAH-1906 <https://issues.redhat.com/browse/AAH-1906>`_, `AAH-1908 <https://issues.redhat.com/browse/AAH-1908>`_
+
+
+----
+
+
+4.5.0 (2022-05-04)
+==================
+
+Features
+--------
+
+- Collection Signing, signature creation, upload, verification and APIs.
+  `AAH-312 <https://issues.redhat.com/browse/AAH-312>`_
+- Add Signing Service to the dev environment
+  `AAH-1181 <https://issues.redhat.com/browse/AAH-1181>`_
+- Update pulp_ansible to 0.12.0, for signing features
+  `AAH-1353 <https://issues.redhat.com/browse/AAH-1353>`_
+- Add "related_fields" to the namespace serializer, which can optionally return "my_permissions" for namespaces.
+  `AAH-1458 <https://issues.redhat.com/browse/AAH-1458>`_
+
+
+Bugfixes
+--------
+
+- Improve queries on move api endpoint
+  `AAH-692 <https://issues.redhat.com/browse/AAH-692>`_
+- Log query items to api access log to capture collection details when uploading a collection.
+  `AAH-1018 <https://issues.redhat.com/browse/AAH-1018>`_
+- Remote registry sync status not shown on registry page
+  `AAH-1094 <https://issues.redhat.com/browse/AAH-1094>`_
+- Fix response for downloading collections in insights mode
+  `AAH-1162 <https://issues.redhat.com/browse/AAH-1162>`_
+- Upgrade to pulp-container 2.8.3 to fix azure and S3 storage backends.
+  `AAH-1188 <https://issues.redhat.com/browse/AAH-1188>`_
+- Fix a bug preventing users upgrading from 1.2 to 2.1 from downloading content from the rh-certified repository.
+  `AAH-1200 <https://issues.redhat.com/browse/AAH-1200>`_
+- Add missing proxy_password if field is set on CollectionRemote update
+  `AAH-1254 <https://issues.redhat.com/browse/AAH-1254>`_
+- Combine copy and remove tasks into single task
+  `AAH-1349 <https://issues.redhat.com/browse/AAH-1349>`_
+- Update to the latest pulp_container release
+  `AAH-1373 <https://issues.redhat.com/browse/AAH-1373>`_
+- Make sure orphan_protection_time is not set to zero
+  `AAH-1384 <https://issues.redhat.com/browse/AAH-1384>`_
+- Prevent artifact removal from latest version when deleting images
+  `AAH-1389 <https://issues.redhat.com/browse/AAH-1389>`_
+- Update locks on synclist tasks so golden_repo will not be written to during tasks
+  `AAH-1395 <https://issues.redhat.com/browse/AAH-1395>`_
+- Check for existing synclist obj before create in RH Auth
+  `AAH-1399 <https://issues.redhat.com/browse/AAH-1399>`_
+- Remove custom admin as TaskAdmin was removed from pulpcore
+  `AAH-1478 <https://issues.redhat.com/browse/AAH-1478>`_
+- Fix collectionversion query build, it was taking too much time to calculate a django Q() expression
+  `AAH-1484 <https://issues.redhat.com/browse/AAH-1484>`_
+- Use simple string splitting to remove the requirements versions
+  `AAH-1545 <https://issues.redhat.com/browse/AAH-1545>`_
+- Ensure that container remotes exclude source images by default to prevent networking errors when syncing.
+  `AAH-1557 <https://issues.redhat.com/browse/AAH-1557>`_
+
+
+Misc
+----
+
+- `AAH-765 <https://issues.redhat.com/browse/AAH-765>`_, `AAH-804 <https://issues.redhat.com/browse/AAH-804>`_, `AAH-1015 <https://issues.redhat.com/browse/AAH-1015>`_, `AAH-1038 <https://issues.redhat.com/browse/AAH-1038>`_, `AAH-1042 <https://issues.redhat.com/browse/AAH-1042>`_, `AAH-1090 <https://issues.redhat.com/browse/AAH-1090>`_, `AAH-1092 <https://issues.redhat.com/browse/AAH-1092>`_, `AAH-1097 <https://issues.redhat.com/browse/AAH-1097>`_, `AAH-1106 <https://issues.redhat.com/browse/AAH-1106>`_, `AAH-1212 <https://issues.redhat.com/browse/AAH-1212>`_, `AAH-1214 <https://issues.redhat.com/browse/AAH-1214>`_, `AAH-1219 <https://issues.redhat.com/browse/AAH-1219>`_, `AAH-1278 <https://issues.redhat.com/browse/AAH-1278>`_, `AAH-1361 <https://issues.redhat.com/browse/AAH-1361>`_, `AAH-1418 <https://issues.redhat.com/browse/AAH-1418>`_, `AAH-1442 <https://issues.redhat.com/browse/AAH-1442>`_
+
+
+----
+
+
+4.4.0 (2021-11-18)
+==================
+
+Features
+--------
+
+- Update settings.py with Redis config provided by Clowder
+  `AAH-382 <https://issues.redhat.com/browse/AAH-382>`_
+- Create new api endpoints for listing, getting, and updating container registries.
+  `AAH-434 <https://issues.redhat.com/browse/AAH-434>`_
+- Create new api endpoints for listing, getting, and updating container remotes.
+  `AAH-435 <https://issues.redhat.com/browse/AAH-435>`_
+- Create remote sync api endpoint.
+  `AAH-438 <https://issues.redhat.com/browse/AAH-438>`_
+- Create templates to deploy Automation Hub services via the Clowder operator
+  `AAH-581 <https://issues.redhat.com/browse/AAH-581>`_
+- Start deploying galaxy_ng to ephemeral environments in pr_check
+  `AAH-582 <https://issues.redhat.com/browse/AAH-582>`_
+- Update to galaxy-importer version that uses ansible-core 2.11
+  `AAH-588 <https://issues.redhat.com/browse/AAH-588>`_
+- Add new healthz endpoint for liveness probe to check in ephemeral environments.
+  `AAH-683 <https://issues.redhat.com/browse/AAH-683>`_
+- Ensure retain_repo_versions=1 is set for newly created repositories and existing
+  `AAH-708 <https://issues.redhat.com/browse/AAH-708>`_
+- Enable Namespace deletion endpoint.
+  `AAH-709 <https://issues.redhat.com/browse/AAH-709>`_
+- Allow collection versions to be deleted
+  `AAH-710 <https://issues.redhat.com/browse/AAH-710>`_
+- Allow collections to be deleted
+  `AAH-711 <https://issues.redhat.com/browse/AAH-711>`_
+- Allow container repository to be deleted
+  `AAH-712 <https://issues.redhat.com/browse/AAH-712>`_
+- Allow container manifest to be deleted
+  `AAH-713 <https://issues.redhat.com/browse/AAH-713>`_
+- Add configuration for api access logging.
+  `AAH-733 <https://issues.redhat.com/browse/AAH-733>`_
+- Add unix socket support to collection version download view
+  `AAH-743 <https://issues.redhat.com/browse/AAH-743>`_
+- Update settings.py and urls.py with Social Auth values when environment is configured
+  `AAH-846 <https://issues.redhat.com/browse/AAH-846>`_
+- Add the ability to index execution environments from Red Hat registry remotes. This scans the registry for containers that are labeled with the execution environment label and creates remote container repositories for them which can be synced.
+  `AAH-864 <https://issues.redhat.com/browse/AAH-864>`_
+- Enable unauthenticated view-only collection browsing
+  `AAH-881 <https://issues.redhat.com/browse/AAH-881>`_
+- Add CONNECTED_ANSIBLE_CONTROLLERS setting which enables users to specify a list of controller instances that they wish to have galaxy ng connect to.
+  `AAH-888 <https://issues.redhat.com/browse/AAH-888>`_
+- Create access policy for registries endpoint.
+  `AAH-896 <https://issues.redhat.com/browse/AAH-896>`_
+- Create filters for container registries endpoint.
+  `AAH-897 <https://issues.redhat.com/browse/AAH-897>`_
+- Enable basic (username/password) authentication for galaxy apis.
+  `AAH-901 <https://issues.redhat.com/browse/AAH-901>`_
+- Add dependency filter to ui collection versions endpoint
+  `AAH-902 <https://issues.redhat.com/browse/AAH-902>`_
+- Add api endpoint for getting a listof tags in a container repository.
+  `AAH-906 <https://issues.redhat.com/browse/AAH-906>`_
+- Enable keycloak authentication using username and password for podman login.
+  `AAH-916 <https://issues.redhat.com/browse/AAH-916>`_
+- Add pre-authorized-redirect content guard to distributions
+  `AAH-923 <https://issues.redhat.com/browse/AAH-923>`_
+- Allow container registry-remote to be deleted
+  `AAH-931 <https://issues.redhat.com/browse/AAH-931>`_
+- Add created_at and updated_at filters to container registries endpoint.
+  `AAH-938 <https://issues.redhat.com/browse/AAH-938>`_
+- Add api endpoint to sync all remotes in a container registry.
+  `AAH-945 <https://issues.redhat.com/browse/AAH-945>`_
+- Add image manifests to container images api.
+  `AAH-964 <https://issues.redhat.com/browse/AAH-964>`_
+
+
+Bugfixes
+--------
+
+- Made API Root view to raise 404 if distro path is provided but distro doesn´t exist.
+  `AAH-157 <https://issues.redhat.com/browse/AAH-157>`_
+- Disable streamed sync endpoints
+  `AAH-224 <https://issues.redhat.com/browse/AAH-224>`_
+- Improve errors for max length violations in collection filename import
+  `AAH-428 <https://issues.redhat.com/browse/AAH-428>`_
+- Uses optional file_url from caller, pulp-ansible>=0.8, to support additional pulp backend storage platforms
+  `AAH-431 <https://issues.redhat.com/browse/AAH-431>`_
+- Fix incorrect openapi.yml
+
+  Fix in this case mostly means removing an
+  out of date version in lieu of the autogenerated
+  version at /api/automation-hub/v3/openapi.yaml
+  `AAH-450 <https://issues.redhat.com/browse/AAH-450>`_
+- Fix "CVE-2021-32052 django: header injection" by moving to django ~=2.2.23
+  `AAH-583 <https://issues.redhat.com/browse/AAH-583>`_
+- Fix synclist to exclude all versions of un-checked collection.
+  `AAH-585 <https://issues.redhat.com/browse/AAH-585>`_
+- Update the required django to ~=2.2.23
+  `AAH-601 <https://issues.redhat.com/browse/AAH-601>`_
+- Pin 'click' version to 7.1.2 for 'rq' compat
+  `AAH-637 <https://issues.redhat.com/browse/AAH-637>`_
+- Implemented filters for state and keywords on imports API.
+  `AAH-646 <https://issues.redhat.com/browse/AAH-646>`_
+- Download collection artifacts from the galaxy apis instead of the pulp content app.
+  `AAH-661 <https://issues.redhat.com/browse/AAH-661>`_
+- Update to work with pulpcore 3.14 API
+  `AAH-706 <https://issues.redhat.com/browse/AAH-706>`_
+- Create 'inbound-namespaces' whenever a namespace is created.
+  `AAH-739 <https://issues.redhat.com/browse/AAH-739>`_
+- Fix typo in AWS S3 configuration for Clowder
+  `AAH-781 <https://issues.redhat.com/browse/AAH-781>`_
+- Fixed missing galaxy-importer configuration in Clowder template.
+  `AAH-815 <https://issues.redhat.com/browse/AAH-815>`_
+- Adds dependency django-automated-logging
+  `AAH-849 <https://issues.redhat.com/browse/AAH-849>`_
+- Fix keycloak setting not being loaded from /etc/pulp/settings.py
+  `AAH-915 <https://issues.redhat.com/browse/AAH-915>`_
+- Bump django-automated-logging version to include IP Address in logs
+  `AAH-918 <https://issues.redhat.com/browse/AAH-918>`_
+- Download collection artifacts from the pulp content app instead of the galaxy apis
+  `AAH-924 <https://issues.redhat.com/browse/AAH-924>`_
+- Fix container pull error to make compatible with drf-access-policy update
+  `AAH-940 <https://issues.redhat.com/browse/AAH-940>`_
+- Add auth_provider to users/ endpoint to denote an SSO user
+  `AAH-952 <https://issues.redhat.com/browse/AAH-952>`_
+- Add get_object to ContainerSyncRemoteView to fix AAH-989
+  `AAH-989 <https://issues.redhat.com/browse/AAH-989>`_
+- Allow deleting execution environment repositories with a dot in name
+  `AAH-1049 <https://issues.redhat.com/browse/AAH-1049>`_
+- Fix a bug where remote container repositories could not be deleted.
+  `AAH-1095 <https://issues.redhat.com/browse/AAH-1095>`_
+
+
+Misc
+----
+
+- `AAH-224 <https://issues.redhat.com/browse/AAH-224>`_, `AAH-424 <https://issues.redhat.com/browse/AAH-424>`_, `AAH-460 <https://issues.redhat.com/browse/AAH-460>`_, `AAH-563 <https://issues.redhat.com/browse/AAH-563>`_, `AAH-570 <https://issues.redhat.com/browse/AAH-570>`_, `AAH-576 <https://issues.redhat.com/browse/AAH-576>`_, `AAH-579 <https://issues.redhat.com/browse/AAH-579>`_, `AAH-581 <https://issues.redhat.com/browse/AAH-581>`_, `AAH-584 <https://issues.redhat.com/browse/AAH-584>`_, `AAH-603 <https://issues.redhat.com/browse/AAH-603>`_, `AAH-606 <https://issues.redhat.com/browse/AAH-606>`_, `AAH-647 <https://issues.redhat.com/browse/AAH-647>`_, `AAH-707 <https://issues.redhat.com/browse/AAH-707>`_, `AAH-750 <https://issues.redhat.com/browse/AAH-750>`_, `AAH-799 <https://issues.redhat.com/browse/AAH-799>`_, `AAH-830 <https://issues.redhat.com/browse/AAH-830>`_, `AAH-837 <https://issues.redhat.com/browse/AAH-837>`_, `AAH-871 <https://issues.redhat.com/browse/AAH-871>`_, `AAH-873 <https://issues.redhat.com/browse/AAH-873>`_, `AAH-917 <https://issues.redhat.com/browse/AAH-917>`_
+
+
+----
+
+
 4.3.0a2 (2021-04-16)
 ====================
 

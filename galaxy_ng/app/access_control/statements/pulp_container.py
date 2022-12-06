@@ -36,7 +36,7 @@ PULP_CONTAINER_VIEWSETS = {
                 # "principal": "*",
                 "principal": "authenticated",
                 "effect": "allow",
-                "condition": [
+                "condition_expression": [
                     "not is_private",
                 ],
             },
@@ -84,15 +84,13 @@ PULP_CONTAINER_VIEWSETS = {
                 ],
             },
         ],
-        # Removed permission assignement. Filtering out the container groups
-        # proved to be too much of a challenge.
-        "permissions_assignment": []
+        "creation_hooks": []
     },
 
     "pulp_container/namespaces": {
         "statements": [
             {
-                "action": ["list"],
+                "action": ["list", "my_permissions"],
                 "principal": "authenticated",
                 "effect": "allow",
             },
@@ -129,29 +127,22 @@ PULP_CONTAINER_VIEWSETS = {
                 "effect": "allow",
                 "condition": "has_model_or_obj_perms:container.namespace_view_containerdistribution",  # noqa: E501
             },
-        ],
-        # Removed group creation for owner. Filtering out the container groups proved to be too
-        # much of a challenge.
-        "permissions_assignment": [
             {
-                "function": "add_for_object_creator",
-                "parameters": None,
-                "permissions": [
-                    "container.view_containernamespace",
-                    "container.delete_containernamespace",
-                    # Add `container.change_containernamespace` permissions so the namespace
-                    # owner can add additional groups to their namespace.
-                    "container.change_containernamespace",
-                    "container.namespace_add_containerdistribution",
-                    "container.namespace_delete_containerdistribution",
-                    "container.namespace_view_containerdistribution",
-                    "container.namespace_pull_containerdistribution",
-                    "container.namespace_push_containerdistribution",
-                    "container.namespace_change_containerdistribution",
-                    "container.namespace_view_containerpushrepository",
-                    "container.namespace_modify_content_containerpushrepository",
-                ],
+                "action": ["list_roles", "add_role", "remove_role"],
+                "principal": "authenticated",
+                "effect": "allow",
+                "condition": "has_model_or_obj_perms:container.manage_roles_containernamespace",
             },
+        ],
+        "creation_hooks": [
+            {
+                "function": "add_roles_for_object_creator",
+                "parameters": {
+                    "roles": [
+                        "galaxy.execution_environment_namespace_owner",
+                    ],
+                },
+            }
         ],
     },
 
@@ -170,7 +161,7 @@ PULP_CONTAINER_VIEWSETS = {
                 "condition": "has_namespace_or_obj_perms:container.view_containerpushrepository",
             },
             {
-                "action": ["tag", "untag", "remove_image"],
+                "action": ["tag", "untag", "remove_image", "sign", "remove_signatures"],
                 "principal": "authenticated",
                 "effect": "allow",
                 "condition": [
@@ -180,7 +171,7 @@ PULP_CONTAINER_VIEWSETS = {
         ],
         # Remove permission assignment since it's trying to add permissions to groups
         # that don't exist
-        "permissions_assignment": [],
+        "creation_hooks": [],
     }
 
 }

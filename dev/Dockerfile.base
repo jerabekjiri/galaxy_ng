@@ -1,4 +1,4 @@
-FROM quay.io/centos/centos:8
+FROM registry.access.redhat.com/ubi8
 
 ARG USER_ID=1000
 ARG USER_NAME=galaxy
@@ -32,18 +32,31 @@ RUN set -ex; \
 RUN set -ex; \
     touch /var/lib/rpm/* \
     && dnf -y install \
+        gettext \
         git \
         gcc \
         glibc-langpack-en \
-        python3-devel \
+        python38-devel \
         libpq \
         libpq-devel \
+        pinentry \
+        make \
+        openldap-devel \
+        skopeo \
     && dnf clean all \
     && rm -rf /var/cache/dnf/ \
     && rm -f /var/lib/rpm/__db.* \
-    \
-    && mkdir /venv \
-    && chown ${USER_NAME}:${USER_GROUP} /venv
+    && mkdir --mode=2775 /venv \
+    && chown ${USER_NAME}:${USER_GROUP} /venv \
+    && mkdir --mode=2775 /app \
+    && chown ${USER_NAME}:${USER_GROUP} /app
+
+# Install entr so we can have reload on worker processes
+RUN git clone https://github.com/eradman/entr && \
+    cd entr && \
+    cp Makefile.linux Makefile && \
+    make && \
+    make install
 
 USER ${USER_NAME}:${USER_GROUP}
 RUN set -ex; \
@@ -53,6 +66,7 @@ ENV PATH="/venv/bin:${PATH}" \
     VIRTUAL_ENV="/venv"
 
 COPY ./requirements/requirements.common.txt /tmp/requirements.txt
+COPY ./dev/common/ansible-sign.key /tmp/ansible-sign.key
 
 RUN set -ex; \
     pip install --no-cache-dir --upgrade pip \
@@ -70,27 +84,41 @@ RUN set -ex; \
 
 USER root:root
 RUN set -ex; \
+    mkdir --mode=2775 -p /etc/pulp/certs/ && \
     if [[ "${LOCK_REQUIREMENTS}" -eq "1" ]]; then \
     PULP_CONTENT_ORIGIN=x django-admin collectstatic; fi
 
 # Finalize installation
 RUN set -ex; \
-    mkdir -p /var/lib/pulp/artifact \
+    mkdir -p /entrypoints.d \
+            /etc/ansible \
+    && mkdir --mode=2775 -p /var/lib/pulp \
+    && chown ${USER_NAME}:${USER_GROUP} /var/lib/pulp \
+    && mkdir --mode=2775 -p \
+             /var/lib/pulp/artifact \
              /var/lib/pulp/tmp \
+             /var/lib/pulp/scripts \
+             /etc/pulp/certs \
              /tmp/ansible \
-             /etc/ansible \
-             /entrypoints.d \
-    && chown -R ${USER_NAME}:${USER_GROUP} \
-        /var/lib/pulp \
+    && chown ${USER_NAME}:${USER_GROUP} /var/lib/pulp/artifact \
+    && chown ${USER_NAME}:${USER_GROUP} /var/lib/pulp/tmp \
+    && chown ${USER_NAME}:${USER_GROUP} /var/lib/pulp/scripts \
+    && chown ${USER_NAME}:${USER_GROUP} /etc/pulp/certs \
+    && chown ${USER_NAME}:${USER_GROUP} \
         /tmp/ansible \
         /etc/ansible \
-    && chmod -R 0775 /var/lib/pulp \
-                     /app/docker/entrypoint.sh \
+    && chmod -R 0775 /app/docker/entrypoint.sh \
                      /app/docker/bin/* \
-                     /tmp/ansible \
     && mv /app/docker/entrypoint.sh /entrypoint.sh \
     && mv /app/ansible.cfg /etc/ansible/ansible.cfg \
-    && mv /app/docker/bin/* /usr/local/bin
+    && mv /app/docker/bin/* /usr/local/bin \
+    && touch /var/log/galaxy_api_access.log \
+    && chmod 0644 /var/log/galaxy_api_access.log \
+    && chown galaxy:galaxy /var/log/galaxy_api_access.log \
+    && echo "DNmNdwgyZugTax9S64J0FITTr9IHPxbuoF1F1CGPr68=" > /etc/pulp/certs/database_fields.symmetric.key
+
+# This symmetric.key is for dev only and should not be used in production
+# DNmNdwgyZugTax9S64J0FITTr9IHPxbuoF1F1CGPr68=
 
 USER "${USER_NAME}"
 VOLUME [ "/var/lib/pulp", "/tmp/ansible" ]

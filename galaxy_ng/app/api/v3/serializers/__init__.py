@@ -1,9 +1,5 @@
 from .collection import (
-    CollectionSerializer,
-    CollectionVersionSerializer,
-    CollectionVersionListSerializer,
     CollectionUploadSerializer,
-    UnpaginatedCollectionVersionSerializer,
 )
 
 from .namespace import (
@@ -20,11 +16,16 @@ from .task import (
     TaskSummarySerializer,
 )
 
+from .execution_environment import (
+    ContainerRepositorySerializer,
+    ContainerTagSerializer,
+    ContainerManifestSerializer,
+    ContainerManifestDetailSerializer,
+    ContainerReadmeSerializer,
+    ContainerRepositoryHistorySerializer
+)
 
 __all__ = (
-    'CollectionSerializer',
-    'CollectionVersionSerializer',
-    'CollectionVersionListSerializer',
     'CollectionUploadSerializer',
     'GroupSummarySerializer',
     'NamespaceSerializer',
@@ -32,4 +33,10 @@ __all__ = (
     'TaskSerializer',
     'TaskSummarySerializer',
     'UnpaginatedCollectionVersionSerializer',
+    'ContainerRepositorySerializer',
+    'ContainerRepositoryHistorySerializer',
+    'ContainerManifestSerializer',
+    'ContainerTagSerializer',
+    'ContainerManifestDetailSerializer',
+    'ContainerReadmeSerializer',
 )

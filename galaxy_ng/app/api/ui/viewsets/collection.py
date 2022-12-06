@@ -1,7 +1,9 @@
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Exists, OuterRef, Q, Value, F, Func, CharField
+from django.db.models import When, Case
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext_lazy as _
 from django_filters import filters
 from django_filters.rest_framework import filterset, DjangoFilterBackend, OrderingFilter
 from drf_spectacular.utils import extend_schema
@@ -31,6 +33,22 @@ class CollectionByCollectionVersionFilter(pulp_ansible_viewsets.CollectionVersio
     versioning_class = versioning.UIVersioning
     keywords = filters.CharFilter(field_name="keywords", method="filter_by_q")
     deprecated = filters.BooleanFilter()
+    sign_state = filters.CharFilter(method="filter_by_sign_state")
+
+    # The pulp core filtersets return a 400 on requests that include params that aren't
+    # registered with a filterset. This is a hack to make the include_related fields work
+    # on this viewset.
+    include_related = filters.CharFilter(method="no_op")
+
+    def filter_by_sign_state(self, qs, name, value):
+        """Filter queryset qs by list of sign_state."""
+        query_params = Q()
+        for state in value.split(","):
+            query_params |= Q(sign_state=state.strip())
+        return qs.filter(query_params)
+
+    def no_op(self, qs, name, value):
+        return qs
 
 
 class CollectionViewSet(
@@ -51,42 +69,73 @@ class CollectionViewSet(
 
     def get_queryset(self):
         """Returns a CollectionVersions queryset for specified distribution."""
-        path = self.kwargs.get('path')
+        if getattr(self, "swagger_fake_view", False):
+            # OpenAPI spec generation
+            return CollectionVersion.objects.none()
+        path = self.kwargs.get('distro_base_path')
         if path is None:
-            raise Http404("Distribution base path is required")
+            raise Http404(_("Distribution base path is required"))
 
-        versions = CollectionVersion.objects.filter(pk__in=self._distro_content).values_list(
-            "collection_id",
-            "version",
-        )
+        base_versions_query = CollectionVersion.objects.filter(pk__in=self._distro_content)
 
+        # Build a dict to be used by the annotation filter at the end of the method
         collection_versions = {}
-        for collection_id, version in versions:
+        for collection_id, version in base_versions_query.values_list("collection_id", "version"):
             value = collection_versions.get(str(collection_id))
             if not value or semantic_version.Version(version) > semantic_version.Version(value):
                 collection_versions[str(collection_id)] = version
 
+        deprecated_query = AnsibleCollectionDeprecated.objects.filter(
+            namespace=OuterRef("namespace"),
+            name=OuterRef("name"),
+            pk__in=self._distro_content,
+        )
+
         if not collection_versions.items():
             return CollectionVersion.objects.none().annotate(
-                # AAH-122: annotated fields must exist in all the returned querysets
+                # AAH-122: annotated filterable fields must exist in all the returned querysets
                 #          in order for filters to work.
-                deprecated=Exists(AnsibleCollectionDeprecated.objects)
+                deprecated=Exists(deprecated_query),
+                sign_state=Value("unsigned"),
             )
 
-        query_params = Q()
-        for collection_id, version in collection_versions.items():
-            query_params |= Q(collection_id=collection_id, version=version)
+        # The main queryset to be annotated
+        version_qs = base_versions_query.select_related("collection")
 
-        deprecated_query = AnsibleCollectionDeprecated.objects.filter(
-            collection=OuterRef("collection"), repository_version=self._repository_version
+        # AAH-1484 - replacing `Q(collection__id, version)` with this annotation
+        # This builds `61505561-f806-4ddd-8f53-c403f0ec04ed:3.2.9` for each row.
+        # this is done to be able to filter at the end of this method and
+        # return collections only once and only for its highest version.
+        version_identifier_expression = Func(
+            F("collection__pk"), Value(":"), F("version"),
+            function="concat",
+            output_field=CharField(),
         )
-        version_qs = CollectionVersion.objects.select_related("collection").filter(query_params)
-        version_qs = version_qs.annotate(deprecated=Exists(deprecated_query))
+
+        version_qs = version_qs.annotate(
+            deprecated=Exists(deprecated_query),
+            version_identifier=version_identifier_expression,
+            sign_state=Case(
+                When(signatures__pk__in=self._distro_content, then=Value("signed")),
+                default=Value("unsigned"),
+            )
+        )
+
+        # AAH-1484 - filtering by version_identifier
+        version_qs = version_qs.filter(
+            version_identifier__in=[
+                ":".join([pk, version]) for pk, version in collection_versions.items()
+            ]
+        )
+
         return version_qs
 
     def get_object(self):
         """Return CollectionVersion object, latest or via query param 'version'."""
         version = self.request.query_params.get('version', None)
+        if getattr(self, "swagger_fake_view", False):
+            # OpenAPI spec generation
+            return CollectionVersion.objects.none()
 
         if not version:
             queryset = self.get_queryset()
@@ -94,11 +143,18 @@ class CollectionViewSet(
                 queryset, namespace=self.kwargs["namespace"], name=self.kwargs["name"]
             )
 
-        return get_object_or_404(
-            CollectionVersion.objects.all(),
+        base_qs = CollectionVersion.objects.filter(
             pk__in=self._distro_content,
             namespace=self.kwargs["namespace"],
             name=self.kwargs["name"],
+        )
+        return get_object_or_404(
+            base_qs.annotate(
+                sign_state=Case(
+                    When(signatures__pk__in=self._distro_content, then=Value("signed")),
+                    default=Value("unsigned")
+                )
+            ),
             version=version,
         )
 
@@ -110,8 +166,15 @@ class CollectionViewSet(
 
 
 class CollectionVersionFilter(filterset.FilterSet):
-    repository = filters.CharFilter(field_name='repository', method='repo_filter')
+    dependency = filters.CharFilter(field_name="dependency", method="dependency_filter")
+    repository = filters.CharFilter(field_name="repository", method="repo_filter")
     versioning_class = versioning.UIVersioning
+
+    def dependency_filter(self, queryset, name, value):
+        """Return all CollectionVersions that have a dependency on the Collection
+        passed in the url string, ex: ?dependency=my_namespace.my_collection_name
+        """
+        return queryset.filter(dependencies__has_key=value)
 
     def repo_filter(self, queryset, name, value):
         try:
@@ -132,7 +195,11 @@ class CollectionVersionFilter(filterset.FilterSet):
 
     class Meta:
         model = CollectionVersion
-        fields = ['namespace', 'name', 'version', 'repository']
+        fields = {
+            'name': ['exact', 'icontains', 'contains', 'startswith'],
+            'namespace': ['exact', 'icontains', 'contains', 'startswith'],
+            'version': ['exact', 'icontains', 'contains', 'startswith'],
+        }
 
 
 class CollectionVersionViewSet(api_base.GenericViewSet):
@@ -151,7 +218,7 @@ class CollectionVersionViewSet(api_base.GenericViewSet):
         serializer = self.get_serializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 
-    @extend_schema(summary="Retrieve collection version",
+    @extend_schema(summary=_("Retrieve collection version"),
                    responses={200: serializers.CollectionVersionDetailSerializer})
     def retrieve(self, request, *args, **kwargs):
         namespace, name, version = self.kwargs['version'].split('/')
@@ -162,7 +229,7 @@ class CollectionVersionViewSet(api_base.GenericViewSet):
                 version=version,
             )
         except ObjectDoesNotExist:
-            raise NotFound(f'Collection version not found for: {self.kwargs["version"]}')
+            raise NotFound(_('Collection version not found for: {}').format(self.kwargs["version"]))
         serializer = serializers.CollectionVersionDetailSerializer(collection_version)
         return Response(serializer.data)
 
@@ -170,6 +237,8 @@ class CollectionVersionViewSet(api_base.GenericViewSet):
 class CollectionImportFilter(filterset.FilterSet):
     namespace = filters.CharFilter(field_name='galaxy_import__namespace__name')
     name = filters.CharFilter(field_name='galaxy_import__name')
+    keywords = filters.CharFilter(field_name='galaxy_import__name', lookup_expr='icontains')
+    state = filters.CharFilter(field_name='task__state')
     version = filters.CharFilter(field_name='galaxy_import__version')
     created = filters.DateFilter(field_name='galaxy_import__created_at')
     versioning_class = versioning.UIVersioning
@@ -182,6 +251,8 @@ class CollectionImportFilter(filterset.FilterSet):
         model = PulpCollectionImport
         fields = ['namespace',
                   'name',
+                  'keywords',
+                  'state',
                   'version']
 
 
@@ -214,7 +285,7 @@ class CollectionImportViewSet(api_base.GenericViewSet,
 
         return self.get_paginated_response(serializer.data)
 
-    @extend_schema(summary="Retrieve collection import",
+    @extend_schema(summary=_("Retrieve collection import"),
                    responses={200: serializers.ImportTaskDetailSerializer})
     def retrieve(self, request, *args, **kwargs):
         task = self.get_object()

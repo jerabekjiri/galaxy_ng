@@ -1,15 +1,25 @@
+# FIXME(cutwater): Refactoring required. Merge this settings file into
+#                  main galaxy_ng/app/settings.py file.
+#                  Split the configuration if necessary.
 import os
+
 
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 AWS_DEFAULT_ACL = None
 
 CONTENT_PATH_PREFIX = "/api/automation-hub/v3/artifacts/collections/"
-GALAXY_API_PATH_PREFIX = "/api/automation-hub"
+ANSIBLE_API_HOSTNAME = os.environ.get('PULP_CONTENT_ORIGIN')
 
-GALAXY_DEPLOYMENT_MODE = os.environ.get('GALAXY_DEPLOYMENT_MODE')
+GALAXY_API_PATH_PREFIX = "/api/automation-hub"
 GALAXY_AUTHENTICATION_CLASSES = ['galaxy_ng.app.auth.auth.RHIdentityAuthentication']
-GALAXY_PERMISSION_CLASSES = ['rest_framework.permissions.IsAuthenticated',
-                             'galaxy_ng.app.auth.auth.RHEntitlementRequired']
+
+# GALAXY_AUTO_SIGN_COLLECTIONS = True
+# GALAXY_COLLECTION_SIGNING_SERVICE = "ansible-default"
+"""
+By default the signing variables are not set.
+if one want to enable signing, then set the following variables
+on the per environment basis. e.g: export PULP_GALAXY_....
+"""
 
 X_PULP_CONTENT_HOST = "pulp-content-app"
 X_PULP_CONTENT_PORT = 24816
@@ -25,10 +35,14 @@ DATABASES = {
     }
 }
 
+# FIXME(cutwater): This looks redundant and should be removed.
 REDIS_HOST = os.environ.get('PULP_REDIS_HOST')
 REDIS_PORT = os.environ.get('PULP_REDIS_PORT')
 
 REST_FRAMEWORK__DEFAULT_RENDERER_CLASSES = ['rest_framework.renderers.JSONRenderer']
+
+_enabled_handlers = ['console']
+_extra_handlers = {}
 
 # Clowder
 # -------
@@ -37,34 +51,94 @@ try:
 except ImportError:
     clowder_config = None
 
+
+def _make_aws_endpoint(config):
+    scheme = 'https' if config.tls else 'http'
+    port = config.port
+
+    if "amazonaws.com" in config.hostname:
+        global AWS_S3_ADDRESSING_STYLE, AWS_S3_SIGNATURE_VERSION
+        AWS_S3_ADDRESSING_STYLE = "virtual"
+        AWS_S3_SIGNATURE_VERSION = "s3v4"
+    netloc = config.hostname
+    if ((scheme == 'http' and port != 80)
+            or (scheme == 'https' and port != 443)):
+        netloc = f"{netloc}:{port}"
+
+    return f"{scheme}://{netloc}"
+
+
 if clowder_config and clowder_config.isClowderEnabled():
+    _LoadedConfig = clowder_config.LoadedConfig
+
     # Database configuration
-    LocalConfig = clowder_config.LoadedConfig
+    if _LoadedConfig.database.rdsCa:
+        DB_SSLROOTCERT = _LoadedConfig.rds_ca()
+    else:
+        DB_SSLROOTCERT = ""
     DATABASES['default'] = {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': LocalConfig.database.name,
-        'HOST': LocalConfig.database.hostname,
-        'PORT': LocalConfig.database.port,
-        'USER': LocalConfig.database.username,
-        'PASSWORD': LocalConfig.database.password
+        'NAME': _LoadedConfig.database.name,
+        'HOST': _LoadedConfig.database.hostname,
+        'PORT': _LoadedConfig.database.port,
+        'USER': _LoadedConfig.database.username,
+        'PASSWORD': _LoadedConfig.database.password,
+        'OPTIONS': {
+            'sslmode': _LoadedConfig.database.sslMode,
+            'sslrootcert': DB_SSLROOTCERT
+        }
     }
+
     # AWS S3 configuration
-    AWS_S3_ENTRYPOINT_URL = 'http://{}:{}'.format(
-        LocalConfig.objectStore.hostname,
-        LocalConfig.objectStore.port
-    )
-    AWS_ACCESS_KEY_ID = LocalConfig.objectStore.accessKey
-    AWS_SECRET_ACCESS_KEY = LocalConfig.objectStore.secretKey
-    AWS_STORAGE_BUCKET_NAME = LocalConfig.objectStore.buckets[0].name
+    AWS_S3_ENDPOINT_URL = _make_aws_endpoint(_LoadedConfig.objectStore)
+    AWS_ACCESS_KEY_ID = _LoadedConfig.objectStore.buckets[0].accessKey
+    AWS_SECRET_ACCESS_KEY = _LoadedConfig.objectStore.buckets[0].secretKey
+    AWS_S3_REGION_NAME = _LoadedConfig.objectStore.buckets[0].region
+    AWS_STORAGE_BUCKET_NAME = _LoadedConfig.objectStore.buckets[0].name
+
     # Redis configuration
-    REDIS_HOST = LocalConfig.inMemoryDb.hostname
-    REDIS_PORT = LocalConfig.inMemoryDb.port
-    del LocalConfig
+    REDIS_HOST = _LoadedConfig.inMemoryDb.hostname
+    REDIS_PORT = _LoadedConfig.inMemoryDb.port
+    REDIS_PASSWORD = _LoadedConfig.inMemoryDb.password
+    REDIS_DB = 0
+    REDIS_SSL = os.environ.get("PULP_REDIS_SSL") == "true"
+
+    REDIS_URL = "{scheme}://{password}{host}:{port}/{db}".format(
+        scheme=("rediss" if REDIS_SSL else "redis"),
+        password=f":{REDIS_PASSWORD}@" if REDIS_PASSWORD else "",
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        db=REDIS_DB,
+    )
+
+    try:
+        with open('/var/run/secrets/kubernetes.io/serviceaccount/namespace') as f:
+            K8S_NAMESPACE = f.read()
+    except OSError:
+        K8S_NAMESPACE = None
+
+    # Cloudwatch configuration
+    CLOUDWATCH_ACCESS_KEY_ID = _LoadedConfig.logging.cloudwatch.accessKeyId
+    CLOUDWATCH_SECRET_ACCESS_KEY = _LoadedConfig.logging.cloudwatch.secretAccessKey
+    CLOUDWATCH_REGION_NAME = _LoadedConfig.logging.cloudwatch.region
+    CLOUDWATCH_LOGGING_GROUP = _LoadedConfig.logging.cloudwatch.logGroup
+    CLOUDWATCH_LOGGING_STREAM_NAME = K8S_NAMESPACE
+
+    if all((
+            CLOUDWATCH_ACCESS_KEY_ID,
+            CLOUDWATCH_SECRET_ACCESS_KEY,
+            CLOUDWATCH_LOGGING_STREAM_NAME
+    )):
+        _enabled_handlers.append("cloudwatch")
+        _extra_handlers["cloudwatch"] = {
+            "level": "INFO",
+            "class": "galaxy_ng.contrib.cloudwatch.CloudWatchHandler",
+        }
+
+    del _LoadedConfig
 
 # Logging
 # -------
-_logging_handlers = ['console']
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -83,34 +157,31 @@ LOGGING = {
             "class": "pulp_ansible.app.logutils.CollectionImportHandler",
             "formatter": "simple",
         },
-        # 'cloudwatch': {
-        #     'level': 'INFO',
-        #     'class': 'galaxy_ng.contrib.cloudwatch.CloudWatchHandler',
-        # },
+
     },
     'root': {
         'level': 'INFO',
-        'handlers': _logging_handlers,
+        'handlers': _enabled_handlers,
     },
     'loggers': {
         'django': {
             'level': 'INFO',
-            'handlers': _logging_handlers,
+            'handlers': _enabled_handlers,
             'propagate': False,
         },
         'django.request': {
             'level': 'INFO',
-            'handlers': _logging_handlers,
+            'handlers': _enabled_handlers,
             'propagate': False,
         },
         'django.server': {
             'level': 'INFO',
-            'handlers': _logging_handlers,
+            'handlers': _enabled_handlers,
             'propagate': False,
         },
         'gunicorn.access': {
             'level': 'INFO',
-            'handlers': _logging_handlers,
+            'handlers': _enabled_handlers,
             'propagate': False,
         },
         "pulp_ansible.app.tasks.collection.import_collection": {
@@ -120,3 +191,4 @@ LOGGING = {
         },
     }
 }
+LOGGING["handlers"].update(_extra_handlers)

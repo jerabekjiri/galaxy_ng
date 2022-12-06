@@ -1,116 +1,43 @@
 import logging
 
 import requests
-
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
-
-
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.http import HttpResponseRedirect, StreamingHttpResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-
-from rest_framework.response import Response
-from rest_framework.exceptions import APIException, NotFound
-
-from pulpcore.plugin.models import Task
-from pulpcore.plugin.tasking import enqueue_with_reservation
+from django.utils.translation import gettext_lazy as _
+from drf_spectacular.utils import extend_schema
 from pulp_ansible.app.galaxy.v3 import views as pulp_ansible_views
-from pulp_ansible.app.models import CollectionVersion, AnsibleDistribution
+from pulp_ansible.app.models import AnsibleDistribution
 from pulp_ansible.app.models import CollectionImport as PulpCollectionImport
-from galaxy_ng.app.api import base as api_base
+from pulp_ansible.app.models import CollectionVersion
 
-from galaxy_ng.app.constants import DeploymentMode, INBOUND_REPO_NAME_FORMAT
+from pulpcore.plugin.models import Content
+from pulpcore.plugin.models import SigningService
+from pulpcore.plugin.models import Task
+from pulpcore.plugin.serializers import AsyncOperationResponseSerializer
+from pulpcore.plugin.tasking import add_and_remove, dispatch
+from rest_framework import status
+from rest_framework.exceptions import APIException, NotFound
+from rest_framework.response import Response
+
 from galaxy_ng.app import models
 from galaxy_ng.app.access_control import access_policy
-
-from galaxy_ng.app.api.v3.serializers import (
-    CollectionSerializer,
-    CollectionVersionSerializer,
-    UnpaginatedCollectionVersionSerializer,
-    CollectionVersionListSerializer,
-    CollectionUploadSerializer,
-)
-
+from galaxy_ng.app.api import base as api_base
+from galaxy_ng.app.api.v3.serializers import CollectionUploadSerializer
 from galaxy_ng.app.common import metrics
-from galaxy_ng.app.tasks import (
-    import_and_move_to_staging,
-    import_and_auto_approve,
-    call_copy_task,
-    call_remove_task,
-    curate_all_synclist_repository,
-)
-
 from galaxy_ng.app.common.parsers import AnsibleGalaxy29MultiPartParser
+from galaxy_ng.app.constants import INBOUND_REPO_NAME_FORMAT, DeploymentMode
+from galaxy_ng.app.tasks import (
+    call_move_content_task,
+    call_sign_and_move_task,
+    import_and_auto_approve,
+    import_and_move_to_staging,
+)
 
 
 log = logging.getLogger(__name__)
-
-
-class ViewNamespaceSerializerContextMixin:
-    def get_serializer_context(self):
-        """Inserts distribution path to a serializer context."""
-
-        context = super().get_serializer_context()
-
-        # view_namespace will be used by the serializers that need to return different hrefs
-        # depending on where in the urlconf they are.
-        # view_route is the url 'route' pattern, used to
-        # handle the special case /api/automation-hub/v3/collections/ not having
-        # a <str:path> in it's url
-        request = context.get("request", None)
-        context["view_namespace"] = None
-        if request:
-            context["view_namespace"] = request.resolver_match.namespace
-            context["view_route"] = request.resolver_match.route
-
-        return context
-
-
-class RepoMetadataViewSet(api_base.LocalSettingsMixin,
-                          pulp_ansible_views.RepoMetadataViewSet):
-    permission_classes = [access_policy.CollectionAccessPolicy]
-
-
-class UnpaginatedCollectionViewSet(api_base.LocalSettingsMixin,
-                                   ViewNamespaceSerializerContextMixin,
-                                   pulp_ansible_views.UnpaginatedCollectionViewSet):
-    pagination_class = None
-    permission_classes = [access_policy.CollectionAccessPolicy]
-    serializer_class = CollectionSerializer
-
-
-class CollectionViewSet(api_base.LocalSettingsMixin,
-                        ViewNamespaceSerializerContextMixin,
-                        pulp_ansible_views.CollectionViewSet):
-    permission_classes = [access_policy.CollectionAccessPolicy]
-    serializer_class = CollectionSerializer
-
-
-class UnpaginatedCollectionVersionViewSet(api_base.LocalSettingsMixin,
-                                          ViewNamespaceSerializerContextMixin,
-                                          pulp_ansible_views.UnpaginatedCollectionVersionViewSet):
-    pagination_class = None
-    serializer_class = UnpaginatedCollectionVersionSerializer
-    permission_classes = [access_policy.CollectionAccessPolicy]
-
-
-class CollectionVersionViewSet(api_base.LocalSettingsMixin,
-                               ViewNamespaceSerializerContextMixin,
-                               pulp_ansible_views.CollectionVersionViewSet):
-    serializer_class = CollectionVersionSerializer
-    permission_classes = [access_policy.CollectionAccessPolicy]
-    list_serializer_class = CollectionVersionListSerializer
-
-
-class CollectionVersionDocsViewSet(api_base.LocalSettingsMixin,
-                                   pulp_ansible_views.CollectionVersionDocsViewSet):
-    permission_classes = [access_policy.CollectionAccessPolicy]
-
-
-class CollectionImportViewSet(api_base.LocalSettingsMixin,
-                              pulp_ansible_views.CollectionImportViewSet):
-    permission_classes = [access_policy.CollectionAccessPolicy]
 
 
 class CollectionUploadViewSet(api_base.LocalSettingsMixin,
@@ -122,16 +49,19 @@ class CollectionUploadViewSet(api_base.LocalSettingsMixin,
     def _dispatch_import_collection_task(self, temp_file_pk, repository=None, **kwargs):
         """Dispatch a pulp task started on upload of collection version."""
         locks = []
+        context = super().get_serializer_context()
+        request = context.get("request", None)
 
         kwargs["temp_file_pk"] = temp_file_pk
+        kwargs["username"] = request.user.username
 
         if repository:
             locks.append(repository)
             kwargs["repository_pk"] = repository.pk
 
         if settings.GALAXY_REQUIRE_CONTENT_APPROVAL:
-            return enqueue_with_reservation(import_and_move_to_staging, locks, kwargs=kwargs)
-        return enqueue_with_reservation(import_and_auto_approve, locks, kwargs=kwargs)
+            return dispatch(import_and_move_to_staging, exclusive_resources=locks, kwargs=kwargs)
+        return dispatch(import_and_auto_approve, exclusive_resources=locks, kwargs=kwargs)
 
     # Wrap super().create() so we can create a galaxy_ng.app.models.CollectionImport based on the
     # the import task and the collection artifact details
@@ -148,8 +78,15 @@ class CollectionUploadViewSet(api_base.LocalSettingsMixin,
            if user does not specify distribution base path
            then use an inbound distribution based on filename namespace.
         """
-        path = kwargs['path']
-        if kwargs.get('no_path_specified', None):
+
+        # the legacy collection upload views don't get redirected and still have to use the
+        # old path arg
+        path = kwargs.get(
+            'distro_base_path',
+            kwargs.get('path', settings.ANSIBLE_DEFAULT_DISTRIBUTION_PATH)
+        )
+
+        if path == settings.ANSIBLE_DEFAULT_DISTRIBUTION_PATH:
             path = INBOUND_REPO_NAME_FORMAT.format(namespace_name=filename_ns)
         return path
 
@@ -169,8 +106,17 @@ class CollectionUploadViewSet(api_base.LocalSettingsMixin,
         if INBOUND_REPO_NAME_FORMAT.format(namespace_name=filename_ns) == repo_name:
             return
         raise NotFound(
-            f'Path does not match: "{INBOUND_REPO_NAME_FORMAT.format(namespace_name=filename_ns)}"')
+            _('Path does not match: "%s"')
+            % INBOUND_REPO_NAME_FORMAT.format(namespace_name=filename_ns)
+        )
 
+    @extend_schema(
+        description="Create an artifact and trigger an asynchronous task to create "
+        "Collection content from it.",
+        summary="Upload a collection",
+        request=CollectionUploadSerializer,
+        responses={202: AsyncOperationResponseSerializer},
+    )
     def create(self, request, *args, **kwargs):
         data = self._get_data(request)
         filename = data['filename']
@@ -181,7 +127,7 @@ class CollectionUploadViewSet(api_base.LocalSettingsMixin,
             namespace = models.Namespace.objects.get(name=filename.namespace)
         except models.Namespace.DoesNotExist:
             raise ValidationError(
-                'Namespace "{0}" does not exist.'.format(filename.namespace)
+                _('Namespace "{0}" does not exist.').format(filename.namespace)
             )
 
         self._check_path_matches_expected_repo(path, filename_ns=namespace.name)
@@ -214,8 +160,8 @@ class CollectionUploadViewSet(api_base.LocalSettingsMixin,
 
         # TODO: CollectionImport.get_absolute_url() should be able to generate this, but
         #       it needs the  repo/distro base_path for the <path> part of url
-        import_obj_url = reverse("galaxy:api:content:v3:collection-import",
-                                 kwargs={'pk': str(task_detail.pulp_id),
+        import_obj_url = reverse("galaxy:api:v3:collection-imports-detail",
+                                 kwargs={'pk': str(task_detail.pk),
                                          'path': path})
 
         log.debug('import_obj_url: %s', import_obj_url)
@@ -227,44 +173,118 @@ class CollectionUploadViewSet(api_base.LocalSettingsMixin,
 
 class CollectionArtifactDownloadView(api_base.APIView):
     permission_classes = [access_policy.CollectionAccessPolicy]
-    action = 'retrieve'
+    action = 'download'
+
+    def _get_tcp_response(self, url):
+        return requests.get(url, stream=True, allow_redirects=False)
+
+    def _get_ansible_distribution(self, base_path):
+        return AnsibleDistribution.objects.get(base_path=base_path)
 
     def get(self, request, *args, **kwargs):
         metrics.collection_artifact_download_attempts.inc()
 
-        url = 'http://{host}:{port}/{prefix}/{distro_base_path}/{filename}'.format(
-            host=settings.X_PULP_CONTENT_HOST,
-            port=settings.X_PULP_CONTENT_PORT,
-            prefix=settings.CONTENT_PATH_PREFIX.strip('/'),
-            distro_base_path=self.kwargs['path'],
-            filename=self.kwargs['filename'],
-        )
+        distro_base_path = self.kwargs['distro_base_path']
+        filename = self.kwargs['filename']
+        prefix = settings.CONTENT_PATH_PREFIX.strip('/')
+        distribution = self._get_ansible_distribution(distro_base_path)
 
-        response = requests.get(url, stream=True, allow_redirects=False)
-
-        if response.status_code == requests.codes.not_found:
-            metrics.collection_artifact_download_failures.labels(
-                status=requests.codes.not_found
-            ).inc()
-            raise NotFound()
-
-        if response.status_code == requests.codes.found:
-            return HttpResponseRedirect(response.headers['Location'])
-
-        if response.status_code == requests.codes.ok:
-            metrics.collection_artifact_download_successes.inc()
-
-            return StreamingHttpResponse(
-                response.raw.stream(amt=4096),
-                content_type=response.headers['Content-Type']
+        if settings.ANSIBLE_COLLECT_DOWNLOAD_LOG:
+            pulp_ansible_views.CollectionArtifactDownloadView.log_download(
+                request, filename, distro_base_path
             )
 
-        metrics.collection_artifact_download_failures.labels(status=response.status_code).inc()
-        raise APIException('Unexpected response from content app. '
-                           f'Code: {response.status_code}.')
+        if settings.GALAXY_DEPLOYMENT_MODE == DeploymentMode.INSIGHTS.value:
+            url = 'http://{host}:{port}/{prefix}/{distro_base_path}/{filename}'.format(
+                host=settings.X_PULP_CONTENT_HOST,
+                port=settings.X_PULP_CONTENT_PORT,
+                prefix=prefix,
+                distro_base_path=distro_base_path,
+                filename=filename,
+            )
+            response = self._get_tcp_response(
+                distribution.content_guard.cast().preauthenticate_url(url)
+            )
+
+            if response.status_code == requests.codes.not_found:
+                metrics.collection_artifact_download_failures.labels(
+                    status=requests.codes.not_found
+                ).inc()
+                raise NotFound()
+            if response.status_code == requests.codes.found:
+                return HttpResponseRedirect(response.headers['Location'])
+            if response.status_code == requests.codes.ok:
+                metrics.collection_artifact_download_successes.inc()
+                return StreamingHttpResponse(
+                    response.raw.stream(amt=4096),
+                    content_type=response.headers['Content-Type']
+                )
+            metrics.collection_artifact_download_failures.labels(status=response.status_code).inc()
+            raise APIException(
+                _('Unexpected response from content app. Code: %s.') % response.status_code
+            )
+        elif settings.GALAXY_DEPLOYMENT_MODE == DeploymentMode.STANDALONE.value:
+            url = '{host}/{prefix}/{distro_base_path}/{filename}'.format(
+                host=settings.CONTENT_ORIGIN.strip("/"),
+                prefix=prefix,
+                distro_base_path=distro_base_path,
+                filename=filename,
+            )
+            return redirect(distribution.content_guard.cast().preauthenticate_url(url))
 
 
-class CollectionVersionMoveViewSet(api_base.ViewSet):
+class CollectionRepositoryMixing:
+
+    @property
+    def version_str(self):
+        """Build version_str from request."""
+        return '-'.join([self.kwargs[key] for key in ('namespace', 'name', 'version')])
+
+    def get_collection_version(self):
+        """Get collection version entity."""
+        try:
+            return CollectionVersion.objects.get(
+                namespace=self.kwargs['namespace'],
+                name=self.kwargs['name'],
+                version=self.kwargs['version'],
+            )
+        except ObjectDoesNotExist:
+            raise NotFound(_('Collection %s not found') % self.version_str)
+
+    def get_repos(self):
+        """Get src and dest repos."""
+        try:
+            src_repo = AnsibleDistribution.objects.get(
+                base_path=self.kwargs['source_path']).repository
+            dest_repo = AnsibleDistribution.objects.get(
+                base_path=self.kwargs['dest_path']).repository
+        except ObjectDoesNotExist:
+            raise NotFound(_('Repo(s) for moving collection %s not found') % self.version_str)
+        return src_repo, dest_repo
+
+
+class CollectionVersionCopyViewSet(api_base.ViewSet, CollectionRepositoryMixing):
+    permission_classes = [access_policy.CollectionAccessPolicy]
+
+    def copy_content(self, request, *args, **kwargs):
+        """Copy collection version from one  repository to another."""
+
+        collection_version = self.get_collection_version()
+        src_repo, dest_repo = self.get_repos()
+        copy_task = dispatch(
+            add_and_remove,
+            exclusive_resources=[dest_repo],
+            shared_resources=[src_repo],
+            kwargs={
+                "repository_pk": dest_repo.pk,
+                "add_content_units": [collection_version.pk],
+                "remove_content_units": [],
+            }
+        )
+        return Response(data={"task_id": copy_task.pk}, status='202')
+
+
+class CollectionVersionMoveViewSet(api_base.ViewSet, CollectionRepositoryMixing):
     permission_classes = [access_policy.CollectionAccessPolicy]
 
     def move_content(self, request, *args, **kwargs):
@@ -274,57 +294,65 @@ class CollectionVersionMoveViewSet(api_base.ViewSet):
         Creates new RepositoryVersion of destination repo with content included.
         """
 
-        version_str = '-'.join([self.kwargs[key] for key in ('namespace', 'name', 'version')])
-        try:
-            collection_version = CollectionVersion.objects.get(
-                namespace=self.kwargs['namespace'],
-                name=self.kwargs['name'],
-                version=self.kwargs['version'],
+        collection_version = self.get_collection_version()
+        src_repo, dest_repo = self.get_repos()
+        content_obj = Content.objects.get(pk=collection_version.pk)
+        if content_obj not in src_repo.latest_version().content:
+            raise NotFound(_('Collection %s not found in source repo') % self.version_str)
+
+        if content_obj in dest_repo.latest_version().content:
+            raise NotFound(_('Collection %s already found in destination repo') % self.version_str)
+
+        response_data = {
+            "copy_task_id": None,
+            "remove_task_id": None,
+            # Can be removed once all synclist stuff is remove
+            # and client compat isnt a concern -akl
+            "curate_all_synclist_repository_task_id": None,
+        }
+        golden_repo = settings.get("GALAXY_API_DEFAULT_DISTRIBUTION_BASE_PATH", "published")
+        auto_sign = settings.get("GALAXY_AUTO_SIGN_COLLECTIONS", False)
+        move_task_params = {
+            "collection_version": collection_version,
+            "source_repo": src_repo,
+            "dest_repo": dest_repo,
+        }
+
+        if auto_sign and dest_repo.name == golden_repo:
+            # Assumed that if user has access to modify the repo, they can also sign the content
+            # so we don't need to check access policies here.
+            signing_service_name = settings.get(
+                "GALAXY_COLLECTION_SIGNING_SERVICE", "ansible-default"
             )
-        except ObjectDoesNotExist:
-            raise NotFound(f'Collection {version_str} not found')
+            try:
+                signing_service = SigningService.objects.get(name=signing_service_name)
+            except ObjectDoesNotExist:
+                raise NotFound(_('Signing %s service not found') % signing_service_name)
 
-        try:
-            src_repo = AnsibleDistribution.objects.get(
-                base_path=self.kwargs['source_path']).repository
-            dest_repo = AnsibleDistribution.objects.get(
-                base_path=self.kwargs['dest_path']).repository
-        except ObjectDoesNotExist:
-            raise NotFound(f'Repo(s) for moving collection {version_str} not found')
+            move_task = call_sign_and_move_task(signing_service, **move_task_params)
+        else:
+            require_signatures = settings.get("GALAXY_REQUIRE_SIGNATURE_FOR_APPROVAL", False)
+            if dest_repo.name == golden_repo and require_signatures:
+                if collection_version.signatures.count() == 0:
+                    return Response(
+                        {
+                            "detail": _(
+                                "Collection {namespace}.{name} could not be approved "
+                                "because system requires at least a signature for approval."
+                            ).format(
+                                namespace=collection_version.namespace,
+                                name=collection_version.name,
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            move_task = call_move_content_task(**move_task_params)
 
-        src_versions = CollectionVersion.objects.filter(pk__in=src_repo.latest_version().content)
-        if collection_version not in src_versions:
-            raise NotFound(f'Collection {version_str} not found in source repo')
+        response_data['copy_task_id'] = response_data['remove_task_id'] = move_task.pk
 
-        dest_versions = CollectionVersion.objects.filter(pk__in=dest_repo.latest_version().content)
-        if collection_version in dest_versions:
-            raise NotFound(f'Collection {version_str} already found in destination repo')
-
-        copy_task = call_copy_task(collection_version, src_repo, dest_repo)
-        remove_task = call_remove_task(collection_version, src_repo)
-
-        curate_task_id = None
         if settings.GALAXY_DEPLOYMENT_MODE == DeploymentMode.INSIGHTS.value:
             golden_repo = AnsibleDistribution.objects.get(
                 base_path=settings.GALAXY_API_DEFAULT_DISTRIBUTION_BASE_PATH
             ).repository
 
-            if dest_repo == golden_repo or src_repo == golden_repo:
-                repo_name = golden_repo.name
-                locks = [golden_repo]
-                task_args = (repo_name,)
-                task_kwargs = {}
-
-                curate_task = enqueue_with_reservation(
-                    curate_all_synclist_repository, locks, args=task_args, kwargs=task_kwargs
-                )
-                curate_task_id = curate_task.id
-
-        return Response(
-            data={
-                'copy_task_id': copy_task.id,
-                'remove_task_id': remove_task.id,
-                "curate_all_synclist_repository_task_id": curate_task_id,
-            },
-            status='202'
-        )
+        return Response(data=response_data, status='202')

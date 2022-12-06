@@ -1,43 +1,49 @@
-from pulpcore.plugin.tasking import enqueue_with_reservation
-from pulp_ansible.app.models import AnsibleRepository, CollectionVersion
-from pulp_ansible.app.tasks.copy import copy_content
+from pulpcore.plugin.tasking import add_and_remove, dispatch
+from pulp_ansible.app.models import CollectionVersionSignature
 
 
-def call_copy_task(collection_version, source_repo, dest_repo):
-    """Calls pulp_ansible task to copy content from source to destination repo."""
-    locks = [source_repo, dest_repo]
-    config = [{
-        'source_repo_version': source_repo.latest_version().pk,
-        'dest_repo': dest_repo.pk,
-        'content': [collection_version.pk],
-    }]
-    return enqueue_with_reservation(
-        copy_content,
-        locks,
-        args=[config],
-        kwargs={},
+def call_move_content_task(collection_version, source_repo, dest_repo):
+    """Dispatches the move content task
+
+    This is a wrapper to group copy_content and remove_content tasks
+    because those 2 must run in sequence ensuring the same locks.
+
+    """
+
+    signatures_pks = CollectionVersionSignature.objects.filter(
+        signed_collection=collection_version.pk,
+        pk__in=source_repo.content.values_list("pk", flat=True)
+    ).values_list("pk", flat=True)
+
+    return dispatch(
+        move_content,
+        exclusive_resources=[source_repo, dest_repo],
+        kwargs=dict(
+            collection_version_pk=collection_version.pk,
+            source_repo_pk=source_repo.pk,
+            dest_repo_pk=dest_repo.pk,
+            signatures_pks=list(signatures_pks),
+        ),
     )
 
 
-def call_remove_task(collection_version, repository):
-    """Calls task to remove content from repo."""
-    remove_task_args = (collection_version.pk, repository.pk)
-    return enqueue_with_reservation(
-        _remove_content_from_repository,
-        [repository],
-        args=remove_task_args,
-        kwargs={},
+def move_content(collection_version_pk, source_repo_pk, dest_repo_pk, signatures_pks=None):
+    """Move collection version + signatures from one repository to another"""
+
+    content = [collection_version_pk]
+    if signatures_pks:
+        content += signatures_pks
+
+    # add content to the destination repo
+    add_and_remove(
+        dest_repo_pk,
+        add_content_units=content,
+        remove_content_units=[],
     )
 
-
-def _remove_content_from_repository(collection_version_pk, repository_pk):
-    """
-    Remove a CollectionVersion from a repository.
-    Args:
-        collection_version_pk: The pk of the CollectionVersion to remove from repository.
-        repository_pk: The pk of the AnsibleRepository to remove the CollectionVersion from.
-    """
-    repository = AnsibleRepository.objects.get(pk=repository_pk)
-    qs = CollectionVersion.objects.filter(pk=collection_version_pk)
-    with repository.new_version() as new_version:
-        new_version.remove_content(qs)
+    # remove content from source repo
+    add_and_remove(
+        source_repo_pk,
+        add_content_units=[],
+        remove_content_units=content,
+    )

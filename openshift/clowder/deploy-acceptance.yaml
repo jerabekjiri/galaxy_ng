@@ -1,0 +1,184 @@
+---
+apiVersion: v1
+kind: Template
+metadata:
+  name: automation-hub-post-deploy-test
+objects:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: entrypoint
+  data:
+    run_iqe.sh: |
+      #!/bin/bash
+
+      EXITCODE=0
+
+      trigger_job () {
+        # trigger build
+        URL=$1
+        BUILD_NUM=$(curl --silent ${URL}/api/json | jq '.nextBuildNumber')
+        curl --silent -X POST -H "Authorization: Bearer ${JENKINS_TOKEN}" ${URL}/buildWithParameters
+
+        # verify build started
+        sleep 10
+        while true; do
+          QUEUE_ITEM=$(curl --silent ${URL}/api/json | jq '.queueItem')
+          if [ "${QUEUE_ITEM}" = "null" ]; then
+            break
+          else
+            sleep 10
+          fi
+        done
+        BUILD_STATUS=$(curl --silent ${URL}/${BUILD_NUM}/api/json | jq '.building')
+        if [ -n "${BUILD_STATUS}" ]; then
+          BUILD_STATUS="running"
+          echo "Jenkins job triggered: ${URL}/${BUILD_NUM}/"
+        else
+          BUILD_STATUS="failed"
+          echo "ERROR: Failed to trigger ${URL}"
+          ((EXITCODE+=1))
+        fi
+      }
+
+      # trigger build 1
+      trigger_job "${JENKINS_JOB_URL}"
+      BUILD_1_NUM=${BUILD_NUM}
+      BUILD_1_STATUS=${BUILD_STATUS}
+
+      # trigger build 2
+      trigger_job "${JENKINS_JOB_URL_2}"
+      BUILD_2_NUM=${BUILD_NUM}
+      BUILD_2_STATUS=${BUILD_STATUS}
+
+      # wait for builds to complete and get results
+      while [ "${BUILD_1_STATUS}" = "running" ] || [ "${BUILD_2_STATUS}" = "running" ]; do
+        sleep 60
+        if [ "${BUILD_1_STATUS}" = "running" ]; then
+          LAST_COMPLETE_BUILD_1=$(curl --silent ${JENKINS_JOB_URL}/api/json | jq '.lastCompletedBuild.number')
+          if [ ${LAST_COMPLETE_BUILD_1} -ge ${BUILD_1_NUM} ]; then
+            BUILD_1_STATUS="complete"
+            BUILD_1_RESULT=$(curl --silent ${JENKINS_JOB_URL}/${BUILD_1_NUM}/api/json | jq '.result')
+            if [ "${BUILD_1_RESULT}" != "\"SUCCESS\"" ]; then
+              echo "ERROR: Jenkins job did not finish successfully: ${JENKINS_JOB_URL}/${BUILD_1_NUM}/"
+              TEXT="Failure"
+              EMOJI=":red_jenkins_circle:"
+              ((EXITCODE+=1))
+            else
+              echo "Jenkins job finished running: ${JENKINS_JOB_URL}/${BUILD_1_NUM}/"
+              TEXT="Success"
+              EMOJI=":green_jenkins_circle:"
+            fi
+            if [ -n "${SLACK_TOKEN}" ] && [ -n "${SLACK_CHANNEL}" ]; then
+              curl -X POST -H "Content-type: application/json" -H "Authorization: Bearer ${SLACK_TOKEN}" --data "{\"channel\":\"${SLACK_CHANNEL}\",\"icon_emoji\":\"${EMOJI}\",\"text\":\"${JENKINS_JOB_URL}/${BUILD_1_NUM}/: ${TEXT}\"}" https://slack.com/api/chat.postMessage
+            fi
+          fi
+        fi
+        if [ "${BUILD_2_STATUS}" = "running" ]; then
+          LAST_COMPLETE_BUILD_2=$(curl --silent ${JENKINS_JOB_URL_2}/api/json | jq '.lastCompletedBuild.number')
+          if [ ${LAST_COMPLETE_BUILD_2} -ge ${BUILD_2_NUM} ]; then
+            BUILD_2_STATUS="complete"
+            BUILD_2_RESULT=$(curl --silent ${JENKINS_JOB_URL_2}/${BUILD_2_NUM}/api/json | jq '.result')
+            if [ "${BUILD_2_RESULT}" != "\"SUCCESS\"" ]; then
+              echo "ERROR: Jenkins job did not finish successfully: ${JENKINS_JOB_URL_2}/${BUILD_2_NUM}/"
+              TEXT="Failure"
+              EMOJI=":red_jenkins_circle:"
+              ((EXITCODE+=1))
+            else
+              echo "Jenkins job finished running: ${JENKINS_JOB_URL_2}/${BUILD_2_NUM}/"
+              TEXT="Success"
+              EMOJI=":green_jenkins_circle:"
+            fi
+            if [ -n "${SLACK_TOKEN}" ] && [ -n "${SLACK_CHANNEL}" ]; then
+              curl -X POST -H "Content-type: application/json" -H "Authorization: Bearer ${SLACK_TOKEN}" --data "{\"channel\":\"${SLACK_CHANNEL}\",\"icon_emoji\":\"${EMOJI}\",\"text\":\"${JENKINS_JOB_URL_2}/${BUILD_2_NUM}/: ${TEXT}\"}" https://slack.com/api/chat.postMessage
+            fi
+          fi
+        fi
+      done
+
+      exit $EXITCODE
+
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    name: automation-hub-app
+
+- apiVersion: batch/v1
+  kind: Job
+  metadata:
+    name: automation-hub-iqe-${IMAGE_TAG}-${JOBID}
+  spec:
+    backoffLimit: 0
+    template:
+      spec:
+        restartPolicy: Never
+        imagePullSecrets:
+          - name: quay-cloudservices-pull
+        serviceAccountName: automation-hub-app
+        containers:
+          - image: quay.io/cloudservices/iqe-tests:automation-hub
+            imagePullPolicy: Always
+            name: automation-hub-iqe
+            resources:
+              limits:
+                cpu: ${IQE_CPU_LIMIT}
+                memory: ${IQE_MEMORY_LIMIT}
+              requests:
+                cpu: ${IQE_CPU_REQUEST}
+                memory: ${IQE_MEMORY_REQUEST}
+            command:
+              - /run_iqe.sh
+            env:
+              - name: JENKINS_JOB_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: iqe-jenkins
+                    key: job-url
+              - name: JENKINS_JOB_URL_2
+                valueFrom:
+                  secretKeyRef:
+                    name: iqe-jenkins
+                    key: job-url-2
+              - name: JENKINS_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: iqe-jenkins
+                    key: token
+              - name: SLACK_TOKEN
+                valueFrom:
+                  secretKeyRef:
+                    name: iqe-jenkins
+                    key: slack-token
+              - name: SLACK_CHANNEL
+                value: ${SLACK_CHANNEL}
+            volumeMounts:
+            - name: entrypoint
+              mountPath: /run_iqe.sh
+              subPath: run_iqe.sh
+              readOnly: true
+        volumes:
+          - name: entrypoint
+            configMap:
+              name: entrypoint
+              items:
+                - key: run_iqe.sh
+                  path: run_iqe.sh
+              defaultMode: 0555
+
+parameters:
+  - name: IMAGE_TAG
+    value: ""
+    required: true
+  - name: JOBID
+    generate: expression
+    from: "[0-9a-z]{5}"
+  - name: IQE_MEMORY_REQUEST
+    value: 100Mi
+  - name: IQE_MEMORY_LIMIT
+    value: 128Mi
+  - name: IQE_CPU_REQUEST
+    value: 50m
+  - name: IQE_CPU_LIMIT
+    value: 200m
+  - name: SLACK_CHANNEL
+    value: ""

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 import os
-import re
 import tempfile
 import tarfile
+import shutil
 import urllib.request
 import urllib.error
 from distutils import log
@@ -13,7 +13,7 @@ from setuptools.command.build_py import build_py as _BuildPyCommand
 from setuptools.command.sdist import sdist as _SDistCommand
 
 package_name = os.environ.get("GALAXY_NG_ALTERNATE_NAME", "galaxy-ng")
-version = "4.4.0dev"
+version = "4.7.0dev"
 
 
 class PrepareStaticCommand(Command):
@@ -29,18 +29,28 @@ class PrepareStaticCommand(Command):
     )
     TARGET_DIR = "galaxy_ng/app/static/galaxy_ng"
 
-    user_options = []
+    user_options = [
+        (
+            'force-download-ui',
+            None,
+            'Replace any existing static files with the ones downloaded from github.'
+        ),
+    ]
 
     def initialize_options(self):
-        pass
+        self.force_download_ui = False
 
     def finalize_options(self):
         pass
 
     def run(self):
         if os.path.exists(self.TARGET_DIR):
-            log.warn(f"Static directory {self.TARGET_DIR} already exists, skipping. ")
-            return
+            if self.force_download_ui:
+                log.warn(f"Removing {self.TARGET_DIR} and re downloading the UI.")
+                shutil.rmtree(self.TARGET_DIR)
+            else:
+                log.warn(f"Static directory {self.TARGET_DIR} already exists, skipping. ")
+                return
 
         with tempfile.NamedTemporaryFile() as download_file:
             log.info(f"Downloading UI distribution to temporary file: {download_file.name}")
@@ -76,26 +86,57 @@ class BuildPyCommand(_BuildPyCommand):
         return super().run()
 
 
+# FIXME: this currently works for CI and dev env, but pip-tools misses dependencies when
+# generating requirements.*.txt files. This needs to be fixed before use in the master branch.
+def _format_pulp_requirement(plugin, specifier=None, ref=None, gh_namespace="pulp"):
+    """
+    Formats the pulp plugin requirement.
+
+    The plugin template is VERY picky about the format we use for git refs. This will
+    help format git refs in a way that won't break CI when we need to pin to development
+    branches of pulp.
+
+    example:
+      _format_pulp_requirement("pulpcore", specifier=">=3.18.1,<3.19.0")
+      _format_pulp_requirement("pulpcore", ref="6e44fb2fe609f92dc1f502b19c67abd08879148f")
+    """
+    if specifier:
+        return plugin + specifier
+    else:
+        repo = plugin.replace("-", "_")
+        return (
+            f"{plugin}@git+https://git@github.com/"
+            f"{gh_namespace}/{repo}.git@{ref}#egg={plugin}"
+        )
+
+
 requirements = [
-    "Django~=2.2.23",
-    "galaxy-importer==0.3.2",
-    "pulpcore<3.12,>=3.11.2",
-    "pulp-ansible==0.7.3",
+    "galaxy-importer>=0.4.6,<0.5.0",
+    "pulpcore>=3.21.3,<3.22.0",
+    "pulp_ansible>=0.15.0,<0.16.0",
     "django-prometheus>=2.0.0",
     "drf-spectacular",
-    # pulp-container 2.6 requires pulpcore >=3.12.1
-    "pulp-container>=2.5.2,<2.6.0",
-    # click 8 requires py38,
-    # can be removed once we require >=py38
-    "click==7.1.2",
+    "pulp-container>=2.14.1,<2.15.0",
+    "django-automated-logging==6.1.3",
+    "social-auth-core>=3.3.1,<4.0.0",
+    "social-auth-app-django>=3.1.0,<4.0.0",
+    "dynaconf>=3.1.9",
+    "django-auth-ldap==4.0.0",
 ]
 
 
-is_on_dev_environment = (
-    "COMPOSE_PROFILE" in os.environ and "DEV_SOURCE_PATH" in os.environ
-    and os.environ.get("LOCK_REQUIREMENTS") == "0"
-)
-if is_on_dev_environment:
+# https://softwareengineering.stackexchange.com/questions/223634/what-is-meant-by-now-you-have-two-problems
+def strip_package_name(spec):
+    operators = ['=', '>', '<', '~', '!', '^', '@']
+    for idc, char in enumerate(spec):
+        if char in operators:
+            return spec[:idc]
+    return spec
+
+
+# next line can be replaced via sed in ci scripts/post_before_install.sh
+unpin_requirements = os.getenv("LOCK_REQUIREMENTS") == "0"
+if unpin_requirements:
     """
     To enable the installation of local dependencies e.g: a local fork of
     pulp_ansible checked out to specific branch/version.
@@ -104,10 +145,13 @@ if is_on_dev_environment:
     ref: https://github.com/ansible/galaxy_ng/wiki/Development-Setup
          #steps-to-run-dev-environment-with-specific-upstream-branch
     """
-    DEV_SOURCE_PATH = os.environ.get("DEV_SOURCE_PATH", "").split(":")
+    DEV_SOURCE_PATH = os.getenv(
+        "DEV_SOURCE_PATH",
+        default="pulpcore:pulp_ansible:pulp_container:galaxy_importer"
+    ).split(":")
     DEV_SOURCE_PATH += [path.replace("_", "-") for path in DEV_SOURCE_PATH]
     requirements = [
-        re.sub(r"""(=|^|~|<|>|!)([\S]+)""", "", req)
+        strip_package_name(req)
         if req.lower().startswith(tuple(DEV_SOURCE_PATH)) else req
         for req in requirements
     ]
@@ -121,7 +165,7 @@ setup(
     author="Red Hat, Inc.",
     author_email="info@ansible.com",
     url="https://github.com/ansible/galaxy_ng/",
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     setup_requires=["wheel"],
     install_requires=requirements,
     include_package_data=True,
@@ -132,8 +176,8 @@ setup(
         "Framework :: Django",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
     ),
     entry_points={"pulpcore.plugin": ["galaxy_ng = galaxy_ng:default_app_config"]},
     cmdclass={

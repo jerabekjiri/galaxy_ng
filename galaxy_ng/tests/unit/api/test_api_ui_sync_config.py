@@ -31,8 +31,8 @@ class TestUiSyncConfigViewSet(BaseTestCase):
         super().setUp()
 
         self.admin_user = self._create_user("admin")
-        self.pe_group = self._create_partner_engineer_group()
-        self.admin_user.groups.add(self.pe_group)
+        self.sync_group = self._create_group(
+            "", "admins", self.admin_user, ["galaxy.collection_admin"])
         self.admin_user.save()
 
         # Remotes are created by data migration
@@ -40,10 +40,10 @@ class TestUiSyncConfigViewSet(BaseTestCase):
         self.community_remote = CollectionRemote.objects.get(name='community')
 
     def build_config_url(self, path):
-        return reverse('galaxy:api:content:v3:sync-config', kwargs={'path': path})
+        return reverse('galaxy:api:v3:sync-config', kwargs={'path': path})
 
     def build_sync_url(self, path):
-        return reverse('galaxy:api:content:v3:sync', kwargs={'path': path})
+        return reverse('galaxy:api:v3:sync', kwargs={'path': path})
 
     def test_positive_get_config_sync_for_certified(self):
         self.client.force_authenticate(user=self.admin_user)

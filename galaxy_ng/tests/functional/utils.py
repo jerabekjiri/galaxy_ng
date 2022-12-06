@@ -1,11 +1,12 @@
 """Utilities for tests for the galaxy plugin."""
+import os
 from functools import partial
 import requests
 from unittest import SkipTest
-from time import sleep
 from tempfile import NamedTemporaryFile
 
-from pulp_smash import api, selectors
+from pulp_smash import api, config, selectors
+from pulp_smash.pulp3.bindings import delete_orphans, monitor_task, PulpTestCase
 from pulp_smash.pulp3.utils import (
     gen_remote,
     gen_repo,
@@ -28,27 +29,43 @@ from galaxy_ng.tests.functional.constants import (
 from pulpcore.client.pulpcore import (
     ApiClient as CoreApiClient,
     ArtifactsApi,
-    Configuration,
     TasksApi,
 )
-from pulpcore.client.galaxy_ng import ApiClient as GalaxyApiClient
+from pulpcore.client.galaxy_ng import (
+    ApiClient as GalaxyApiClient,
+    ApiContentV3SyncApi,
+    ApiContentV3SyncConfigApi,
+    ApiV3NamespacesApi,
+    ApiV3PluginExecutionEnvironmentsRepositoriesContentTagsApi as ContainerRepositoryEndpointApi,
+    ApiV3PluginExecutionEnvironmentsRepositoriesApi as ContainerRepositoryApi,
+    ApiUiV1ExecutionEnvironmentsRemotesApi,
+    ApiUiV1ExecutionEnvironmentsRegistriesApi,
+    ApiV3PluginExecutionEnvironmentsRepositoriesContentSyncApi,
+    ApiUiV1ExecutionEnvironmentsRegistriesSyncApi,
+    ApiV3PluginExecutionEnvironmentsRepositoriesContentImagesApi as ContainerImagesAPI,
+)
+from pulpcore.client.pulp_ansible import (
+    ApiClient as PulpAnsibleApiClient,
+    PulpAnsibleApiV3CollectionsApi,
+)
 
-
-configuration = Configuration()
-configuration.username = "admin"
-configuration.password = "password"
-configuration.safe_chars_for_path_param = "/"
+configuration = config.get_config().get_bindings_config()
 
 
 def set_up_module():
     """Skip tests Pulp 3 isn't under test or if galaxy_ng isn't installed."""
     require_pulp_3(SkipTest)
-    require_pulp_plugins({"galaxy_ng"}, SkipTest)
+    require_pulp_plugins({"galaxy"}, SkipTest)
 
 
 def gen_galaxy_client():
     """Return an OBJECT for galaxy client."""
     return GalaxyApiClient(configuration)
+
+
+def gen_pulp_ansible_client():
+    """Return an OBJECT for galaxy client."""
+    return PulpAnsibleApiClient(configuration)
 
 
 def gen_galaxy_remote(url=GALAXY_FIXTURE_URL, **kwargs):
@@ -153,25 +170,100 @@ def gen_artifact(url=GALAXY_URL):
         return artifact.to_dict()
 
 
-def monitor_task(task_href):
-    """Polls the Task API until the task is in a completed state.
+class TestCaseUsingBindings(PulpTestCase):
+    """A parent TestCase that instantiates the various bindings used throughout tests."""
 
-    Prints the task details and a success or failure message. Exits on failure.
+    @classmethod
+    def setUpClass(cls):
+        """Create class-wide variables."""
+        cls.cfg = config.get_config()
+        cls.client = gen_galaxy_client()
+        cls.pulp_ansible_client = gen_pulp_ansible_client()
+        cls.smash_client = api.Client(cls.cfg, api.smart_handler)
+        cls.namespace_api = ApiV3NamespacesApi(cls.client)
+        cls.collections_api = PulpAnsibleApiV3CollectionsApi(cls.pulp_ansible_client)
+        cls.sync_config_api = ApiContentV3SyncConfigApi(cls.client)
+        cls.sync_api = ApiContentV3SyncApi(cls.client)
+        cls.container_repo_tags_api = ContainerRepositoryEndpointApi(cls.client)
+        cls.container_repo_api = ContainerRepositoryApi(cls.client)
+        cls.container_remotes_api = ApiUiV1ExecutionEnvironmentsRemotesApi(cls.client)
+        cls.container_registries_api = ApiUiV1ExecutionEnvironmentsRegistriesApi(cls.client)
+        cls.container_remote_sync_api = ApiV3PluginExecutionEnvironmentsRepositoriesContentSyncApi(cls.client)
+        cls.container_registry_sync_api = ApiUiV1ExecutionEnvironmentsRegistriesSyncApi(cls.client)
+        cls.container_images_api = ContainerImagesAPI(cls.client)
+        cls.get_ansible_cfg_before_test()
+        cls.galaxy_api_prefix = os.getenv(
+            "PULP_GALAXY_API_PATH_PREFIX", "/api/galaxy").rstrip("/")
 
-    Args:
-        task_href(str): The href of the task to monitor
+    def tearDown(self):
+        """Clean class-wide variable."""
+        with open("ansible.cfg", "w") as f:
+            f.write(self.previous_ansible_cfg)
+        delete_orphans()
 
-    Returns:
-        list[str]: List of hrefs that identify resource created by the task
+    @classmethod
+    def get_token(cls):
+        """Get a Galaxy NG token."""
+        return cls.smash_client.post(f"{cls.galaxy_api_prefix}/v3/auth/token/")["token"]
 
-    """
-    completed = ["completed", "failed", "canceled"]
-    task = tasks.read(task_href)
-    while task.state not in completed:
-        sleep(2)
-        task = tasks.read(task_href)
+    @classmethod
+    def get_ansible_cfg_before_test(cls):
+        """Update ansible.cfg to use the given base_path."""
+        try:
+            with open("ansible.cfg", "r") as f:
+                cls.previous_ansible_cfg = f.read()
+        except FileNotFoundError:
+            cls.previous_ansible_cfg = (
+                "[defaults]\n"
+                "remote_tmp = /tmp/ansible\n"
+                "local_tmp = /tmp/ansible\n"
+            )
 
-    if task.state == "completed":
-        return task.created_resources
 
-    return task.to_dict()
+    def update_ansible_cfg(self, base_path, auth=True):
+        """Update ansible.cfg to use the given base_path."""
+        token = f"token={self.get_token()}" if auth else ""
+        ansible_cfg = (
+            f"{self.previous_ansible_cfg}\n"
+            "[galaxy]\n"
+            "server_list = community_repo\n"
+            "\n"
+            "[galaxy_server.community_repo]\n"
+            f"url={self.cfg.get_base_url()}"
+            f"{self.galaxy_api_prefix}/content/{base_path}/\n"
+            f"{token}"
+        )
+        with open("ansible.cfg", "w") as f:
+            f.write(ansible_cfg)
+
+    def sync_repo(self, requirements_file, **kwargs):
+        """Sync a repository with a given requirements_file"""
+        repo_name = kwargs.get("repo_name", "community")
+        url = kwargs.get("url", "https://galaxy.ansible.com/api/")
+
+        self.sync_config_api.update(
+            repo_name,
+            {
+                "url": f"{url}",
+                "requirements_file": f"{requirements_file}",
+            },
+        )
+
+        response = self.sync_api.sync(repo_name)
+        api_root = os.environ.get("PULP_API_ROOT", "/pulp/")
+        monitor_task(f"{api_root}api/v3/tasks/{response.task}/")
+
+    def delete_namespace(self, namespace_name):
+        """Delete a Namespace"""
+        # namespace_api does not support delete, so we can use the smash_client directly
+        self.smash_client.delete(
+            f"{self.galaxy_api_prefix}/v3/namespaces/{namespace_name}"
+        )
+
+    def delete_collection(self, collection_namespace, collection_name):
+        """Delete a Collection"""
+        monitor_task(self.collections_api.delete(
+            namespace=collection_namespace,
+            name=collection_name,
+            path="published"
+        ).task)

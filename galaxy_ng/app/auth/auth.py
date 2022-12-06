@@ -2,18 +2,17 @@ import base64
 import json
 import logging
 
-from django.db import transaction
 from django.conf import settings
+from django.db import transaction
 
-from guardian import shortcuts
+from pulpcore.plugin.util import get_objects_for_group
 
+from pulp_ansible.app.models import AnsibleDistribution, AnsibleRepository
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
-from pulp_ansible.app.models import AnsibleDistribution, AnsibleRepository
 from galaxy_ng.app.models import SyncList
 from galaxy_ng.app.models.auth import Group, User
-
 
 DEFAULT_UPSTREAM_REPO_NAME = settings.GALAXY_API_DEFAULT_DISTRIBUTION_BASE_PATH
 RH_ACCOUNT_SCOPE = 'rh-identity-account'
@@ -82,11 +81,9 @@ class RHIdentityAuthentication(BaseAuthentication):
     def _ensure_synclists(self, group):
         with transaction.atomic():
             # check for existing synclists
-            perms = ['galaxy.view_synclist']
 
             synclists_owned_by_group = \
-                shortcuts.get_objects_for_group(group, perms, klass=SyncList,
-                                                any_perm=False, accept_global_perms=True)
+                get_objects_for_group(group, 'galaxy.view_synclist', SyncList.objects.all())
             if synclists_owned_by_group:
                 return synclists_owned_by_group
 
@@ -96,25 +93,21 @@ class RHIdentityAuthentication(BaseAuthentication):
                 account_name=group.account_number()
             )
 
-            repository = self._ensure_repository(distro_name)
-            self._get_or_create_synclist_distribution(distro_name, upstream_repository)
+            distribution = self._get_or_create_synclist_distribution(
+                distro_name, upstream_repository
+            )
 
-            default_synclist = SyncList.objects.create(
-                repository=repository, upstream_repository=upstream_repository,
-                policy=SYNCLIST_DEFAULT_POLICY,
-                name=distro_name)
+            default_synclist, _ = SyncList.objects.get_or_create(
+                name=distro_name,
+                defaults={
+                    "distribution": distribution,
+                    "policy": SYNCLIST_DEFAULT_POLICY,
+                },
+            )
 
-            default_synclist.groups = {group: ['galaxy.view_synclist', 'galaxy.add_synclist',
-                                               'galaxy.delete_synclist', 'galaxy.change_synclist']}
+            default_synclist.groups = {group: ['galaxy.synclist_owner']}
             default_synclist.save()
         return default_synclist
-
-    @staticmethod
-    def _ensure_repository(name):
-        repository, created = AnsibleRepository.objects.get_or_create(name=name)
-        if created:
-            repository.save()
-        return repository
 
     @staticmethod
     def _ensure_user(username, group, **attrs):
@@ -123,7 +116,7 @@ class RHIdentityAuthentication(BaseAuthentication):
                 username=username,
                 defaults=attrs,
             )
-            if created:
+            if group not in user.groups.all():
                 user.groups.add(group)
         return user
 

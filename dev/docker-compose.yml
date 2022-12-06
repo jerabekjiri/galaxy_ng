@@ -14,13 +14,15 @@ services:
         DEV_VOLUME_SUFFIX: "${DEV_VOLUME_SUFFIX:-${DEV_IMAGE_SUFFIX:-}}"
     image: "localhost/galaxy_ng/galaxy_ng:base${DEV_IMAGE_SUFFIX:-}"
     environment:
-      - "WITH_DEV_INSTALL=1"
+      - "WITH_DEV_INSTALL=${WITH_DEV_INSTALL}"
       - "LOCK_REQUIREMENTS=${LOCK_REQUIREMENTS}"
       - "DEV_SOURCE_PATH=${DEV_SOURCE_PATH}"
       - "COMPOSE_PROFILE=${COMPOSE_PROFILE}"
+      - "ENABLE_SIGNING=${ENABLE_SIGNING}"
     entrypoint: "/bin/true"
     tmpfs:
       - "/var/lib/pulp/artifact"
+      - "/var/lib/pulp/scripts"
       - "/var/lib/pulp/tmp"
       - "/tmp/ansible"
 
@@ -36,35 +38,18 @@ services:
     ports:
       - "5001:8000"
     environment:
-      - "WITH_DEV_INSTALL=1"
+      - "WITH_DEV_INSTALL=${WITH_DEV_INSTALL}"
       - "LOCK_REQUIREMENTS=${LOCK_REQUIREMENTS}"
       - "DEV_SOURCE_PATH=${DEV_SOURCE_PATH}"
       - "COMPOSE_PROFILE=${COMPOSE_PROFILE}"
+      - "ENABLE_SIGNING=${ENABLE_SIGNING}"
     env_file:
       - './common/galaxy_ng.env'
     volumes:
       - "./common/settings.py:/etc/pulp/settings.py:z"
-      - "${COMPOSE_CONTEXT}/..:/src:z"
-      - "pulp:/var/lib/pulp"
-    tmpfs:
-      - "/tmp/ansible:uid=1000,gid=1000"
-    depends_on:
-      - _base
-      - postgres
-      - redis
-
-  resource-manager:
-    image: "localhost/galaxy_ng/galaxy_ng:${COMPOSE_PROFILE}${DEV_IMAGE_SUFFIX:-}"
-    command: ['run', 'resource-manager']
-    environment:
-      - "WITH_DEV_INSTALL=1"
-      - "LOCK_REQUIREMENTS=${LOCK_REQUIREMENTS}"
-      - "DEV_SOURCE_PATH=${DEV_SOURCE_PATH}"
-      - "COMPOSE_PROFILE=${COMPOSE_PROFILE}"
-    env_file:
-      - './common/galaxy_ng.env'
-    volumes:
-      - "./common/settings.py:/etc/pulp/settings.py:z"
+      - "./common/dynaconf_hooks.py:/etc/pulp/dynaconf_hooks.py:z"
+      - "./common/collection_sign.sh:/var/lib/pulp/scripts/collection_sign.sh:z"
+      - "./common/container_sign.sh:/var/lib/pulp/scripts/container_sign.sh:z"
       - "${COMPOSE_CONTEXT}/..:/src:z"
       - "pulp:/var/lib/pulp"
     tmpfs:
@@ -76,16 +61,19 @@ services:
 
   worker:
     image: "localhost/galaxy_ng/galaxy_ng:${COMPOSE_PROFILE}${DEV_IMAGE_SUFFIX:-}"
-    command: ['run', 'worker']
+    command: ['run', 'worker-reload']
     environment:
-      - "WITH_DEV_INSTALL=1"
+      - "WITH_DEV_INSTALL=${WITH_DEV_INSTALL}"
       - "LOCK_REQUIREMENTS=${LOCK_REQUIREMENTS}"
       - "DEV_SOURCE_PATH=${DEV_SOURCE_PATH}"
       - "COMPOSE_PROFILE=${COMPOSE_PROFILE}"
+      - "ENABLE_SIGNING=${ENABLE_SIGNING}"
     env_file:
       - './common/galaxy_ng.env'
     volumes:
       - "./common/settings.py:/etc/pulp/settings.py:z"
+      - "./common/collection_sign.sh:/var/lib/pulp/scripts/collection_sign.sh:z"
+      - "./common/container_sign.sh:/var/lib/pulp/scripts/container_sign.sh:z"
       - "${COMPOSE_CONTEXT}/..:/src:z"
       - "pulp:/var/lib/pulp"
     tmpfs:
@@ -101,14 +89,17 @@ services:
     ports:
       - "24816:24816"
     environment:
-      - "WITH_DEV_INSTALL=1"
+      - "WITH_DEV_INSTALL=${WITH_DEV_INSTALL}"
       - "LOCK_REQUIREMENTS=${LOCK_REQUIREMENTS}"
       - "DEV_SOURCE_PATH=${DEV_SOURCE_PATH}"
       - "COMPOSE_PROFILE=${COMPOSE_PROFILE}"
+      - "ENABLE_SIGNING=${ENABLE_SIGNING}"
     env_file:
       - './common/galaxy_ng.env'
     volumes:
       - "./common/settings.py:/etc/pulp/settings.py:z"
+      - "./common/collection_sign.sh:/var/lib/pulp/scripts/collection_sign.sh:z"
+      - "./common/container_sign.sh:/var/lib/pulp/scripts/container_sign.sh:z"
       - "${COMPOSE_CONTEXT}/..:/src:z"
       - "pulp:/var/lib/pulp"
     tmpfs:
@@ -131,6 +122,16 @@ services:
     image: "redis:5"
     volumes:
       - "redis_data:/data"
+
+
+  swagger-ui:
+   image: swaggerapi/swagger-ui
+   ports:
+      - "8003:8080"
+  #  volumes:
+  #     - ./doc:/usr/share/nginx/html/doc
+   environment:
+      API_URL: http://0.0.0.0:5001/api/automation-hub/v3/openapi.json
 
 
 volumes:

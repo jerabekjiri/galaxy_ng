@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils.translation import gettext_lazy as _
 from django_filters import filters
 from django_filters.rest_framework import filterset, DjangoFilterBackend
 
@@ -20,7 +21,7 @@ class GroupFilter(filterset.FilterSet):
     class Meta:
         model = Group
         fields = {
-            'name': ['exact', 'contains', 'startswith']
+            'name': ['exact', 'contains', 'icontains', 'startswith']
         }
 
 
@@ -41,13 +42,9 @@ class GroupViewSet(LocalSettingsMixin, viewsets.GroupViewSet):
         name = request.data['name']
         if Group.objects.filter(name=name).exists():
             raise ConflictError(
-                detail={'name': f'A group named {name} already exists.'}
+                detail={'name': _('A group named %s already exists.') % name}
             )
         return super().create(request, *args, **kwargs)
-
-
-class GroupModelPermissionViewSet(LocalSettingsMixin, viewsets.GroupModelPermissionViewSet):
-    permission_classes = [access_policy.GroupAccessPolicy]
 
 
 class GroupUserViewSet(LocalSettingsMixin, viewsets.GroupUserViewSet):

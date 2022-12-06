@@ -14,14 +14,11 @@ from .tags import TagsViewSet
 from .user import UserViewSet, CurrentUserViewSet
 from .synclist import SyncListViewSet
 from .root import APIRootView
-from .group import GroupViewSet, GroupModelPermissionViewSet, GroupUserViewSet
+from .group import GroupViewSet, GroupUserViewSet
 from .distribution import DistributionViewSet, MyDistributionViewSet
 from .execution_environment import (
-    ContainerRepositoryViewSet,
-    ContainerRepositoryManifestViewSet,
-    ContainerRepositoryHistoryViewSet,
-    ContainerReadmeViewSet,
-    ContainerNamespaceViewSet
+    ContainerRegistryRemoteViewSet,
+    ContainerRemoteViewSet
 )
 
 __all__ = (
@@ -38,13 +35,10 @@ __all__ = (
     'SyncListViewSet',
     'APIRootView',
     'GroupViewSet',
-    'GroupModelPermissionViewSet',
     'GroupUserViewSet',
     'DistributionViewSet',
     'MyDistributionViewSet',
-    'ContainerRepositoryViewSet',
-    'ContainerRepositoryManifestViewSet',
-    'ContainerRepositoryHistoryViewSet',
-    'ContainerReadmeViewSet',
-    'ContainerNamespaceViewSet'
+    'ContainerRegistryRemoteViewSet',
+    'ContainerRemoteViewSet',
+    'ContainerTagViewset'
 )

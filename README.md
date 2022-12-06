@@ -1,6 +1,6 @@
 # Galaxy NG
 
-[![Build Status](https://travis-ci.com/ansible/galaxy_ng.svg?branch=master)](https://travis-ci.com/ansible/galaxy_ng)
+[![Build Status](https://github.com/ansible/galaxy_ng/actions/workflows/ci.yml/badge.svg)](https://github.com/ansible/galaxy_ng/actions/workflows/ci.yml)
 
 A Pulp plugin to support hosting your very own Ansible Galaxy server.
 
@@ -11,6 +11,10 @@ Our mission is to help organizations share Ansible automation and promote a cult
 To see what we're currently working on, [view the Roadmap](/ROADMAP.rst). 
 
 To learn more about Pulp, [view the Pulp project page](https://pulpproject.org/).
+
+## Documentation
+
+Project documentation is hosted on [netlify](https://galaxyng.netlify.app/).
 
 ## OpenAPI Spec
 

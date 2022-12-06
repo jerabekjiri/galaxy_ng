@@ -1,8 +1,6 @@
 from django.db import models
-
-from pulpcore.plugin.models import AutoDeleteObjPermsMixin
-from pulp_ansible.app.models import AnsibleRepository, Collection
 from django_lifecycle import LifecycleModel
+from pulp_ansible.app.models import AnsibleDistribution, AnsibleRepository, Collection
 
 from galaxy_ng.app.access_control.mixins import GroupModelPermissionsMixin
 
@@ -10,7 +8,7 @@ from . import namespace as namespace_models
 
 
 class SyncList(
-    LifecycleModel, GroupModelPermissionsMixin, AutoDeleteObjPermsMixin
+    LifecycleModel, GroupModelPermissionsMixin
 ):
 
     POLICY_CHOICES = [
@@ -22,10 +20,19 @@ class SyncList(
     policy = models.CharField(max_length=64, choices=POLICY_CHOICES, default="exclude")
 
     upstream_repository = models.ForeignKey(
-        AnsibleRepository, on_delete=models.CASCADE, related_name="upstream_repositories"
+        AnsibleRepository,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="upstream_repositories",
     )
     repository = models.ForeignKey(
-        AnsibleRepository, on_delete=models.CASCADE, related_name="repositories"
+        AnsibleRepository, null=True, on_delete=models.SET_NULL, related_name="repositories"
+    )
+    distribution = models.ForeignKey(
+        AnsibleDistribution,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="distributions",
     )
     collections = models.ManyToManyField(Collection)
     namespaces = models.ManyToManyField(namespace_models.Namespace)

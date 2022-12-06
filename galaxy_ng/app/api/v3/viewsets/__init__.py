@@ -1,14 +1,8 @@
 from .collection import (
     CollectionArtifactDownloadView,
-    CollectionImportViewSet,
     CollectionUploadViewSet,
-    CollectionViewSet,
-    CollectionVersionViewSet,
-    CollectionVersionDocsViewSet,
     CollectionVersionMoveViewSet,
-    UnpaginatedCollectionViewSet,
-    UnpaginatedCollectionVersionViewSet,
-    RepoMetadataViewSet,
+    CollectionVersionCopyViewSet,
 )
 
 from .namespace import (
@@ -21,19 +15,28 @@ from .task import (
 
 from .sync import SyncConfigViewSet
 
+from .execution_environments import (
+    ContainerRepositoryViewSet,
+    ContainerRepositoryManifestViewSet,
+    ContainerRepositoryHistoryViewSet,
+    ContainerReadmeViewSet,
+    ContainerTagViewset
+)
 
 __all__ = (
     'CollectionArtifactDownloadView',
-    'CollectionImportViewSet',
     'CollectionUploadViewSet',
-    'CollectionViewSet',
-    'CollectionVersionViewSet',
-    'CollectionVersionDocsViewSet',
     'CollectionVersionMoveViewSet',
+    'CollectionVersionCopyViewSet',
     'NamespaceViewSet',
     'SyncConfigViewSet',
     'TaskViewSet',
     'UnpaginatedCollectionViewSet',
     'UnpaginatedCollectionVersionViewSet',
     'RepoMetadataViewSet',
+    'ContainerRepositoryViewSet',
+    'ContainerRepositoryManifestViewSet',
+    'ContainerRepositoryHistoryViewSet',
+    'ContainerReadmeViewSet',
+    'ContainerTagViewset'
 )

@@ -51,7 +51,7 @@ class TestUiMySyncListViewSet(BaseSyncListViewSet):
             log.info("gac path: %s", galaxy_app_config.path)
 
             post_data = {
-                "repository": self.repo.pulp_id,
+                "repository": self.repo.pk,
                 "collections": [],
                 "namespaces": [],
                 "policy": "include",
@@ -59,7 +59,7 @@ class TestUiMySyncListViewSet(BaseSyncListViewSet):
                     {
                         "id": self.group.id,
                         "name": self.group.name,
-                        "object_permissions": self.default_owner_permissions,
+                        "object_roles": self.default_owner_roles,
                     },
                 ],
             }
@@ -81,7 +81,7 @@ class TestUiMySyncListViewSet(BaseSyncListViewSet):
             ns.save()
 
             post_data = {
-                "repository": self.repo.pulp_id,
+                "repository": self.repo.pk,
                 "collections": [],
                 "namespaces": [ns_name],
                 "policy": "include",
@@ -89,7 +89,7 @@ class TestUiMySyncListViewSet(BaseSyncListViewSet):
                     {
                         "id": self.group.id,
                         "name": self.group.name,
-                        "object_permissions": self.default_owner_permissions,
+                        "object_roles": self.default_owner_roles,
                     },
                 ],
             }
@@ -109,16 +109,16 @@ class TestUiMySyncListViewSet(BaseSyncListViewSet):
             self.assertEqual(response.data["name"], self.synclist_name)
             self.assertEqual(response.data["policy"], "include")
 
-            # Sort permission list for comparison
-            response.data["groups"][0]["object_permissions"].sort()
-            self.default_owner_permissions.sort()
+            # Sort role list for comparison
+            response.data["groups"][0]["object_roles"].sort()
+            self.default_owner_roles.sort()
             self.assertEqual(
                 response.data["groups"],
                 [
                     {
                         "name": self.group.name,
                         "id": self.group.id,
-                        "object_permissions": self.default_owner_permissions,
+                        "object_roles": self.default_owner_roles
                     }
                 ],
             )
@@ -137,7 +137,7 @@ class TestUiMySyncListViewSet(BaseSyncListViewSet):
             self.assertEqual(len(data), 1)
             self.assertEqual(data[0]["name"], self.synclist_name)
             self.assertEqual(data[0]["policy"], "exclude")
-            self.assertEqual(data[0]["repository"], self.repo.pulp_id)
+            self.assertEqual(data[0]["repository"], self.repo.pk)
 
     def test_my_synclist_detail(self):
         with self.settings(GALAXY_DEPLOYMENT_MODE=DeploymentMode.INSIGHTS.value):

@@ -5,8 +5,6 @@ from django.test import override_settings
 from django.conf import settings
 from rest_framework import status as http_code
 
-from guardian import shortcuts
-
 from galaxy_ng.app.models import auth as auth_models
 from galaxy_ng.app.constants import DeploymentMode
 
@@ -55,7 +53,7 @@ class BaseUiSynclistViewSet:
     def test_synclist_create(self):
         new_synclist_name = "new_synclist"
         post_data = {
-            "repository": self.repo.pulp_id,
+            "repository": self.repo.pk,
             "collections": [],
             "namespaces": [],
             "policy": "include",
@@ -83,7 +81,7 @@ class BaseUiSynclistViewSet:
         ns2.save()
 
         post_data = {
-            "repository": self.repo.pulp_id,
+            "repository": self.repo.pk,
             "collections": [],
             "namespaces": [ns1_name, ns2_name],
             "policy": "include",
@@ -197,7 +195,7 @@ class DeniedSynclistViewSet(BaseUiSynclistViewSet):
 
     def test_synclist_create(self):
         post_data = {
-            "repository": self.repo.pulp_id,
+            "repository": self.repo.pk,
             "collections": [],
             "namespaces": [],
             "policy": "include",
@@ -230,7 +228,7 @@ class DeniedSynclistViewSet(BaseUiSynclistViewSet):
 
     def test_synclist_update(self):
         post_data = {
-            "repository": self.repo.pulp_id,
+            "repository": self.repo.pk,
             "collections": [],
             "namespaces": [],
             "policy": "include",
@@ -307,7 +305,7 @@ class TestUiSynclistViewSetWithDefaultGroupPerms(DeniedSynclistViewSet, BaseSync
         ns1.save()
 
         post_data = {
-            "repository": self.repo.pulp_id,
+            "repository": self.repo.pk,
             "collections": [],
             "namespaces": [ns1_name],
             "policy": "include",
@@ -346,9 +344,6 @@ class TestUiSynclistViewSetNoGroupPerms(DeniedSynclistViewSet, BaseSyncListViewS
         self.user.save()
         self.group.save()
 
-        # Remove any group level perms
-        for perm in self.default_owner_permissions:
-            shortcuts.remove_perm(f"galaxy.{perm}", self.group)
         self.group.save()
 
         self.synclist_name = "test_synclist"
@@ -358,8 +353,6 @@ class TestUiSynclistViewSetNoGroupPerms(DeniedSynclistViewSet, BaseSyncListViewS
             upstream_repository=self.default_repo,
             groups=[self.group],
         )
-        for perm in self.default_owner_permissions:
-            shortcuts.remove_perm(f"galaxy.{perm}", self.group, self.synclist)
 
         self.credentials()
         self.client.force_authenticate(user=self.user)

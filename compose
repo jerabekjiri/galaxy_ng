@@ -3,6 +3,18 @@
 set -o nounset
 set -o errexit
 
+# the internal mechanisms for installing and testing do not
+# work if the checkout path is not named "galaxy_ng", so
+# this script should -always- abort if that is not the case.
+CWD=$(basename $(pwd))
+if [[ "${CWD}" != "galaxy_ng" ]]; then
+    cat >&2 <<EOF
+ERROR: The checkout directory -must- be named galaxy_ng. A different
+       name can cause many unintended behaviors inside the containers
+EOF
+    exit 1
+fi
+
 if [[ -f '.compose.env' ]]; then
   # export variables from .compose.env but only if the var is not already set.
   eval "$(grep -v '^#' .compose.env | sed -E 's|^(.+)=(.*)$|export \1=${\1:-\2}|g' | xargs -L 1)"
@@ -45,8 +57,17 @@ declare -xr DEV_SOURCE_PATH=${DEV_SOURCE_PATH:-galaxy_ng}
 declare -xr COMPOSE_CONTEXT=".."
 declare -xr LOCK_REQUIREMENTS="${LOCK_REQUIREMENTS:-1}"
 declare -xr COMPOSE_PROFILE="${COMPOSE_PROFILE}"
+declare -xr ENABLE_SIGNING="${ENABLE_SIGNING:-1}"
 declare -xr DEV_IMAGE_SUFFIX="${DEV_IMAGE_SUFFIX:-}"
 declare -xr DEV_VOLUME_SUFFIX="${DEV_VOLUME_SUFFIX:-${DEV_IMAGE_SUFFIX}}"
 declare -xr COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-galaxy_ng${DEV_IMAGE_SUFFIX:-}}"
+declare -xr WITH_DEV_INSTALL="${WITH_DEV_INSTALL:-1}"
+
+#if [ -v SOCIAL_AUTH_GITHUB_KEY ]; then
+#    declare -xr SOCIAL_AUTH_GITHUB_KEY="${SOCIAL_AUTH_GITHUB_KEY:null}"
+#fi
+#if [ -v SOCIAL_AUTH_GITHUB_SECRET ]; then
+#    declare -xr SOCIAL_AUTH_GITHUB_SECRET="${SOCIAL_AUTH_GITHUB_SECRET:null}"
+#fi
 
 exec docker-compose "${compose_args[@]}" "$@"

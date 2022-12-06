@@ -3,17 +3,13 @@ import logging
 from django.conf import settings
 from django.db import transaction
 from django.db.utils import IntegrityError
-
-
-from rest_framework.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
+from pulp_ansible.app.models import AnsibleRepository, Collection
 from rest_framework import serializers
-
-from pulp_ansible.app.models import Collection
-from pulp_ansible.app.models import AnsibleRepository, AnsibleDistribution
+from rest_framework.exceptions import ValidationError
 
 from galaxy_ng.app import models
 from galaxy_ng.app.access_control.fields import GroupPermissionField
-
 
 log = logging.getLogger(__name__)
 
@@ -39,14 +35,10 @@ class SyncListSerializer(serializers.ModelSerializer):
             repository = AnsibleRepository.objects.get(pulp_id=repository_id)
             return repository
         except AnsibleRepository.DoesNotExist:
-            errmsg = 'Repository "{pulp_id}" not found while creating synclist'
+            errmsg = _('Repository "{pulp_id}" not found while creating synclist')
             raise ValidationError(errmsg.format(pulp_id=repository_id))
 
     def to_internal_value(self, data):
-        repository_data = data.get("repository", None)
-        if repository_data:
-            data["repository"] = self._get_repository(repository_data)
-
         upstream_repository_data = data.get("upstream_repository", None)
         if upstream_repository_data:
             data["upstream_repository"] = self._get_repository(upstream_repository_data)
@@ -56,37 +48,13 @@ class SyncListSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
     @transaction.atomic
-    def _create_repository(self, name):
-        repository, created = AnsibleRepository.objects.get_or_create(name=name)
-        if created:
-            repository.save()
-        return repository
-
-    def _update_distribution(self, name_slug, repository):
-        # Now the distro
-        try:
-            distribution, create = AnsibleDistribution.objects.get_or_create(
-                name=name_slug, base_path=name_slug,
-            )
-        except Exception as exc:
-            log.exception(exc)
-            raise
-
-        # Now update the Distribution to point to the new Repository
-        distribution.repository = repository
-
-        distribution.save()
-        return distribution
-
-    @transaction.atomic
     def create(self, validated_data):
         collections_data = validated_data.pop("collections")
         namespaces_data = validated_data.pop("namespaces")
-        repository = validated_data.pop("repository", None)
-        name = validated_data.get("name")
 
-        if not repository:
-            repository = self._create_repository(name)
+        # Match repository to upstream_repository
+        # TODO: remove after SyncList no longer has FK to repositories
+        repository = validated_data.pop("upstream_repository")
 
         try:
             instance = models.SyncList.objects.create(
@@ -94,7 +62,7 @@ class SyncListSerializer(serializers.ModelSerializer):
                 **validated_data
             )
         except IntegrityError as exc:
-            raise ValidationError("Synclist already exists: %s" % exc)
+            raise ValidationError(_("Synclist already exists: %s") % exc)
 
         collections = []
         for collection_data in collections_data:
@@ -102,7 +70,8 @@ class SyncListSerializer(serializers.ModelSerializer):
                 collections.append(Collection.objects.get(**collection_data))
             except Collection.DoesNotExist:
                 errmsg = (
-                    'Collection "{namespace}.{name}" not found while creating synclist {synclist}'
+                    _('Collection "{namespace}.{name}" not found '
+                      'while creating synclist {synclist}')
                 )
                 raise ValidationError(
                     errmsg.format(
@@ -140,7 +109,8 @@ class SyncListSerializer(serializers.ModelSerializer):
                 new_collections.append(Collection.objects.get(**collection_data))
             except Collection.DoesNotExist:
                 errmsg = (
-                    'Collection "{namespace}.{name}" not found while updating synclist {synclist}'
+                    _('Collection "{namespace}.{name}" not found '
+                      'while updating synclist {synclist}')
                 )
                 raise ValidationError(
                     errmsg.format(
@@ -150,15 +120,6 @@ class SyncListSerializer(serializers.ModelSerializer):
                     )
                 )
         instance.collections.set(new_collections)
-
-        # if collection goes from empty to having something in it,
-        # then we also need to point the associated distro to the synclist repo
-        if instance.collections.all() and instance.repository:
-            self._update_distribution(instance.name, instance.repository)
-        else:
-            # synclist is no longer including/excluding anything, so point back
-            # at the default upstream repo
-            self._update_distribution(instance.name, instance.upstream_repository)
 
         instance.save()
 
@@ -172,6 +133,7 @@ class SyncListSerializer(serializers.ModelSerializer):
             "policy",
             "upstream_repository",
             "repository",
+            "distribution",
             "collections",
             "namespaces",
             "groups",

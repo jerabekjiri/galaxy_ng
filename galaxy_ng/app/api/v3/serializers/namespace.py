@@ -3,15 +3,22 @@ import re
 
 from django.db import transaction
 from django.core import validators
+from django.utils.translation import gettext_lazy as _
 
 from rest_framework.exceptions import ValidationError
 from rest_framework import serializers
 
+from pulpcore.plugin.serializers import IdentityField
 
 from galaxy_ng.app import models
-from galaxy_ng.app.access_control.fields import GroupPermissionField
+from galaxy_ng.app.access_control.fields import GroupPermissionField, MyPermissionsField
+from galaxy_ng.app.api.base import RelatedFieldsBaseSerializer
 
 log = logging.getLogger(__name__)
+
+
+class NamespaceRelatedFieldSerializer(RelatedFieldsBaseSerializer):
+    my_permissions = MyPermissionsField(source="*", read_only=True)
 
 
 class ScopedErrorListSerializer(serializers.ListSerializer):
@@ -57,19 +64,23 @@ class NamespaceLinkSerializer(serializers.ModelSerializer):
     # adds the URL to the error so the user can figure out which link the error
     # message is for
     def validate_url(self, url):
-        v = validators.URLValidator(message=f"'{url}' is not a valid url.")
+        v = validators.URLValidator(message=_("'%s' is not a valid url.") % url)
         v(url)
         return url
 
 
 class NamespaceSerializer(serializers.ModelSerializer):
     links = NamespaceLinkSerializer(many=True, required=False)
-
     groups = GroupPermissionField()
+    related_fields = NamespaceRelatedFieldSerializer(source="*")
+
+    # Add a pulp href to namespaces so that it can be referenced in the roles API.
+    pulp_href = IdentityField(view_name="pulp_ansible/namespaces-detail", lookup_field="pk")
 
     class Meta:
         model = models.Namespace
         fields = (
+            'pulp_href',
             'id',
             'name',
             'company',
@@ -78,23 +89,24 @@ class NamespaceSerializer(serializers.ModelSerializer):
             'description',
             'links',
             'groups',
-            'resources'
+            'resources',
+            'related_fields',
         )
 
     # replace with a NamespaceNameSerializer and validate_name() ?
     def validate_name(self, name):
         if not name:
             raise ValidationError(detail={
-                'name': "Attribute 'name' is required"})
+                'name': _("Attribute 'name' is required")})
         if not re.match(r'^[a-z0-9_]+$', name):
             raise ValidationError(detail={
-                'name': 'Name can only contain lower case letters, underscores and numbers'})
+                'name': _('Name can only contain lower case letters, underscores and numbers')})
         if len(name) <= 2:
             raise ValidationError(detail={
-                'name': 'Name must be longer than 2 characters'})
+                'name': _('Name must be longer than 2 characters')})
         if name.startswith('_'):
             raise ValidationError(detail={
-                'name': "Name cannot begin with '_'"})
+                'name': _("Name cannot begin with '_'")})
         return name
 
     @transaction.atomic
@@ -133,6 +145,7 @@ class NamespaceSummarySerializer(NamespaceSerializer):
     class Meta:
         model = models.Namespace
         fields = (
+            'pulp_href',
             'id',
             'name',
             'company',
@@ -140,6 +153,7 @@ class NamespaceSummarySerializer(NamespaceSerializer):
             'avatar_url',
             'description',
             'groups',
+            'related_fields',
         )
 
         read_only_fields = ('name', )
