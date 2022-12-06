@@ -80,9 +80,9 @@ class TestTaskPublish(TestCase):
         self.assertEqual(repo2_version_number + 1, repo2.latest_version().number)
 
     @mock.patch('galaxy_ng.app.tasks.publishing.get_created_collection_versions')
-    @mock.patch('galaxy_ng.app.tasks.publishing.general_create')
+    @mock.patch('galaxy_ng.app.tasks.publishing.import_collection')
     @mock.patch('galaxy_ng.app.tasks.promotion.dispatch')
-    def test_import_and_auto_approve(self, mocked_dispatch, mocked_create, mocked_get_created):
+    def test_import_and_auto_approve(self, mocked_dispatch, mocked_import, mocked_get_created):
         inbound_repo = AnsibleRepository.objects.get(name=staging_name)
 
         golden_repo = AnsibleRepository.objects.get(name=golden_name)
@@ -90,12 +90,15 @@ class TestTaskPublish(TestCase):
         mocked_get_created.return_value = [self.collection_version]
 
         import_and_auto_approve(
-            '',  # username
-            inbound_repo.pk,
-            **{"general_args": ()}
+            self.pulp_temp_file.pk,
+            repository_pk=inbound_repo.pk,
+            expected_namespace='',
+            expected_name='',
+            expected_version='',
+            username='',
         )
 
-        self.assertTrue(mocked_create.call_count == 1)
+        self.assertTrue(mocked_import.call_count == 1)
         self.assertTrue(mocked_dispatch.call_count == 1)
 
         # test cannot find golden repo
@@ -104,15 +107,18 @@ class TestTaskPublish(TestCase):
         mocked_get_created.side_effect = AnsibleDistribution.DoesNotExist
         with self.assertRaises(AnsibleDistribution.DoesNotExist):
             import_and_auto_approve(
-                '',  # username
-                inbound_repo.pk,
-                **{"general_args": ()}
+                self.artifact.pk,
+                repository_pk=inbound_repo.pk,
+                expected_namespace='',
+                expected_name='',
+                expected_version='',
+                username='',
             )
 
     @mock.patch('galaxy_ng.app.tasks.publishing.get_created_collection_versions')
-    @mock.patch('galaxy_ng.app.tasks.publishing.general_create')
+    @mock.patch('galaxy_ng.app.tasks.publishing.import_collection')
     @mock.patch('galaxy_ng.app.tasks.promotion.dispatch')
-    def test_import_and_move_to_staging(self, mocked_dispatch, mocked_create, mocked_get_created):
+    def test_import_and_move_to_staging(self, mocked_dispatch, mocked_import, mocked_get_created):
         staging_repo = AnsibleRepository.objects.get(name=staging_name)
 
         inbound_name = 'the_incoming_repo'
@@ -124,12 +130,15 @@ class TestTaskPublish(TestCase):
         mocked_get_created.return_value = [self.collection_version]
 
         import_and_move_to_staging(
-            '',  # username
-            inbound_repo.pk,
-            **{"general_args": ()}
+            self.pulp_temp_file.pk,
+            repository_pk=inbound_repo.pk,
+            expected_namespace='',
+            expected_name='',
+            expected_version='',
+            username='',
         )
 
-        self.assertTrue(mocked_create.call_count == 1)
+        self.assertTrue(mocked_import.call_count == 1)
         self.assertTrue(mocked_dispatch.call_count == 1)
 
         # test cannot find staging repo
@@ -138,9 +147,12 @@ class TestTaskPublish(TestCase):
         mocked_get_created.side_effect = AnsibleDistribution.DoesNotExist
         with self.assertRaises(AnsibleDistribution.DoesNotExist):
             import_and_move_to_staging(
-                '',  # username
-                inbound_repo.pk,
-                **{"general_args": ()}
+                self.pulp_temp_file.pk,
+                repository_pk=inbound_repo.pk,
+                expected_namespace='',
+                expected_name='',
+                expected_version='',
+                username='',
             )
 
     def test_log_collection_upload(self):

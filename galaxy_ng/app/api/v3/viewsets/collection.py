@@ -46,15 +46,13 @@ class CollectionUploadViewSet(api_base.LocalSettingsMixin,
     parser_classes = [AnsibleGalaxy29MultiPartParser]
     serializer_class = CollectionUploadSerializer
 
-    def _dispatch_upload_collection_task(self, args=None, kwargs=None, repository=None):
+    def _dispatch_import_collection_task(self, temp_file_pk, repository=None, **kwargs):
         """Dispatch a pulp task started on upload of collection version."""
         locks = []
         context = super().get_serializer_context()
         request = context.get("request", None)
 
-        kwargs = kwargs or {}
-        kwargs["general_args"] = args
-
+        kwargs["temp_file_pk"] = temp_file_pk
         kwargs["username"] = request.user.username
 
         if repository:
