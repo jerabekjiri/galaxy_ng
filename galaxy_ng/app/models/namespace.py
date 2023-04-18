@@ -1,56 +1,19 @@
-import contextlib
+import hashlib
+import json
+
 from django.db import models
 from django.db import transaction
-from django.db import IntegrityError
 from django_lifecycle import LifecycleModel
-from pulp_ansible.app.models import AnsibleRepository, AnsibleDistribution
+from django.conf import settings
+
+from pulpcore.plugin.util import get_url
+
+from pulp_ansible.app.models import AnsibleNamespaceMetadata
 
 from galaxy_ng.app.access_control import mixins
-from galaxy_ng.app.constants import INBOUND_REPO_NAME_FORMAT
+from galaxy_ng.app.constants import DeploymentMode
 
 __all__ = ("Namespace", "NamespaceLink")
-
-
-def create_inbound_repo(name):
-    """Creates inbound repo and inbound distribution for namespace publication."""
-    inbound_name = INBOUND_REPO_NAME_FORMAT.format(namespace_name=name)
-    with contextlib.suppress(IntegrityError):
-        # IntegrityError is suppressed for when the named repo/distro already exists
-        # In that cases the error handling is performed on the caller.
-        repo = AnsibleRepository.objects.create(name=inbound_name, retain_repo_versions=1)
-        AnsibleDistribution.objects.create(
-            name=inbound_name,
-            base_path=inbound_name,
-            repository=repo
-        )
-
-
-def delete_inbound_repo(name):
-    """Deletes inbound repo and distro in case of namespace deletion."""
-    inbound_name = INBOUND_REPO_NAME_FORMAT.format(namespace_name=name)
-    with contextlib.suppress(AnsibleRepository.DoesNotExist):
-        AnsibleRepository.objects.get(name=inbound_name).delete()
-    with contextlib.suppress(AnsibleDistribution.DoesNotExist):
-        AnsibleDistribution.objects.get(name=inbound_name).delete()
-
-
-class NamespaceManager(models.Manager):
-
-    def create(self, **kwargs):
-        """Override to create inbound repo and distro."""
-        create_inbound_repo(kwargs['name'])
-        return super().create(**kwargs)
-
-    def bulk_create(self, objs, **kwargs):
-        for obj in objs:
-            create_inbound_repo(obj.name)
-        return super().bulk_create(objs, **kwargs)
-
-    def get_or_create(self, *args, **kwargs):
-        ns, created = super().get_or_create(*args, **kwargs)
-        if created:
-            create_inbound_repo(kwargs['name'])
-        return ns, created
 
 
 class Namespace(LifecycleModel, mixins.GroupModelPermissionsMixin):
@@ -71,18 +34,38 @@ class Namespace(LifecycleModel, mixins.GroupModelPermissionsMixin):
         links: Back reference to related links.
 
     """
-    # Cutom manager to handle inbound repo and distro
-
-    objects = NamespaceManager()
-
     # Fields
 
     name = models.CharField(max_length=64, unique=True, blank=False)
     company = models.CharField(max_length=64, blank=True)
     email = models.CharField(max_length=256, blank=True)
-    avatar_url = models.URLField(max_length=256, blank=True)
+    _avatar_url = models.URLField(max_length=256, blank=True)
     description = models.CharField(max_length=256, blank=True)
     resources = models.TextField(blank=True)
+
+    # Used to track the last namespace metadata object that was created
+    # from this namespace
+    last_created_pulp_metadata = models.ForeignKey(
+        AnsibleNamespaceMetadata,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="galaxy_namespace"
+    )
+
+    @property
+    def avatar_url(self):
+        # TODO: remove this once we can fix the content app on CRC
+        # the content app in crc doesn't work
+        if settings.GALAXY_DEPLOYMENT_MODE == DeploymentMode.STANDALONE.value:
+            data = self.last_created_pulp_metadata
+            if data and data.avatar_sha256:
+                return settings.ANSIBLE_API_HOSTNAME + get_url(data) + "avatar/"
+
+        return self._avatar_url
+
+    @avatar_url.setter
+    def avatar_url(self, value):
+        self._avatar_url = value
 
     def __str__(self):
         return self.name
@@ -96,9 +79,25 @@ class Namespace(LifecycleModel, mixins.GroupModelPermissionsMixin):
             for link in links
         )
 
-    def delete(self, *args, **kwargs):
-        delete_inbound_repo(self.name)
-        return super().delete(*args, **kwargs)
+    @property
+    def metadata_sha256(self):
+        """Calculates the metadata_sha256 from the other metadata fields."""
+        metadata = {
+            "name": self.name,
+            "company": self.company,
+            "email": self.email,
+            "description": self.description,
+            "resources": self.resources,
+            "links": {x.name: x.url for x in self.links.all()},
+            "avatar_sha256": None
+        }
+
+        if self.last_created_pulp_metadata:
+            metadata["avatar_sha256"] = self.last_created_pulp_metadata.avatar_sha256
+
+        metadata_json = json.dumps(metadata, sort_keys=True).encode("utf-8")
+        hasher = hashlib.sha256(metadata_json)
+        return hasher.hexdigest()
 
     class Meta:
         permissions = (

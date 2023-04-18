@@ -4,23 +4,25 @@ import requests
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.http import HttpResponseRedirect, StreamingHttpResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema
 from pulp_ansible.app.galaxy.v3 import views as pulp_ansible_views
 from pulp_ansible.app.models import AnsibleDistribution
 from pulp_ansible.app.models import CollectionImport as PulpCollectionImport
-from pulp_ansible.app.models import CollectionVersion
+from pulp_ansible.app.models import (
+    CollectionVersion,
 
-from pulpcore.plugin.models import Content
-from pulpcore.plugin.models import SigningService
-from pulpcore.plugin.models import Task
+)
+
+from pulpcore.plugin.models import Content, SigningService, Task, TaskGroup
 from pulpcore.plugin.serializers import AsyncOperationResponseSerializer
-from pulpcore.plugin.tasking import add_and_remove, dispatch
+from pulpcore.plugin.tasking import dispatch
 from rest_framework import status
 from rest_framework.exceptions import APIException, NotFound
 from rest_framework.response import Response
+from pulp_ansible.app.tasks.copy import copy_collection
 
 from galaxy_ng.app import models
 from galaxy_ng.app.access_control import access_policy
@@ -28,12 +30,12 @@ from galaxy_ng.app.api import base as api_base
 from galaxy_ng.app.api.v3.serializers import CollectionUploadSerializer
 from galaxy_ng.app.common import metrics
 from galaxy_ng.app.common.parsers import AnsibleGalaxy29MultiPartParser
-from galaxy_ng.app.constants import INBOUND_REPO_NAME_FORMAT, DeploymentMode
+from galaxy_ng.app.constants import DeploymentMode
 from galaxy_ng.app.tasks import (
     call_move_content_task,
     call_sign_and_move_task,
     import_and_auto_approve,
-    import_and_move_to_staging,
+    import_to_staging,
 )
 
 
@@ -48,22 +50,21 @@ class CollectionUploadViewSet(api_base.LocalSettingsMixin,
 
     def _dispatch_upload_collection_task(self, args=None, kwargs=None, repository=None):
         """Dispatch a pulp task started on upload of collection version."""
-        locks = []
         context = super().get_serializer_context()
         request = context.get("request", None)
 
         kwargs = kwargs or {}
         kwargs["general_args"] = args
-
         kwargs["username"] = request.user.username
+        kwargs["repository_pk"] = repository.pk
+        kwargs['filename_ns'] = self.kwargs.get('filename_ns')
 
-        if repository:
-            locks.append(repository)
-            kwargs["repository_pk"] = repository.pk
+        task_group = TaskGroup.objects.create(description=f"Import collection to {repository.name}")
 
         if settings.GALAXY_REQUIRE_CONTENT_APPROVAL:
-            return dispatch(import_and_move_to_staging, exclusive_resources=locks, kwargs=kwargs)
-        return dispatch(import_and_auto_approve, exclusive_resources=locks, kwargs=kwargs)
+            return dispatch(import_to_staging, kwargs=kwargs, task_group=task_group)
+
+        return dispatch(import_and_auto_approve, kwargs=kwargs, task_group=task_group)
 
     # Wrap super().create() so we can create a galaxy_ng.app.models.CollectionImport based on the
     # the import task and the collection artifact details
@@ -74,43 +75,25 @@ class CollectionUploadViewSet(api_base.LocalSettingsMixin,
 
         return serializer.validated_data
 
-    @staticmethod
-    def _get_path(kwargs, filename_ns):
+    def _get_path(self):
         """Use path from '/content/<path>/v3/' or
            if user does not specify distribution base path
-           then use an inbound distribution based on filename namespace.
+           then use a distribution based on filename namespace.
         """
 
         # the legacy collection upload views don't get redirected and still have to use the
         # old path arg
-        path = kwargs.get(
+        path = self.kwargs.get(
             'distro_base_path',
-            kwargs.get('path', settings.ANSIBLE_DEFAULT_DISTRIBUTION_PATH)
+            self.kwargs.get('path', settings.GALAXY_API_STAGING_DISTRIBUTION_BASE_PATH)
         )
 
-        if path == settings.ANSIBLE_DEFAULT_DISTRIBUTION_PATH:
-            path = INBOUND_REPO_NAME_FORMAT.format(namespace_name=filename_ns)
+        # for backwards compatibility, if the user selects the published repo to upload,
+        # send it to staging instead
+        if path == settings.GALAXY_API_DEFAULT_DISTRIBUTION_BASE_PATH:
+            return settings.GALAXY_API_STAGING_DISTRIBUTION_BASE_PATH
+
         return path
-
-    @staticmethod
-    def _check_path_matches_expected_repo(path, filename_ns):
-        """Reject if path does not match expected inbound format
-           containing filename namespace.
-
-        Examples:
-        Reject if path is "staging".
-        Reject if path does not start with "inbound-".
-        Reject if path is "inbound-alice" but filename namepace is "bob".
-        """
-
-        distro = get_object_or_404(AnsibleDistribution, base_path=path)
-        repo_name = distro.repository.name
-        if INBOUND_REPO_NAME_FORMAT.format(namespace_name=filename_ns) == repo_name:
-            return
-        raise NotFound(
-            _('Path does not match: "%s"')
-            % INBOUND_REPO_NAME_FORMAT.format(namespace_name=filename_ns)
-        )
 
     @extend_schema(
         description="Create an artifact and trigger an asynchronous task to create "
@@ -123,7 +106,9 @@ class CollectionUploadViewSet(api_base.LocalSettingsMixin,
         data = self._get_data(request)
         filename = data['filename']
 
-        path = self._get_path(kwargs, filename_ns=filename.namespace)
+        self.kwargs['filename_ns'] = filename.namespace
+
+        path = self._get_path()
 
         try:
             namespace = models.Namespace.objects.get(name=filename.namespace)
@@ -131,8 +116,6 @@ class CollectionUploadViewSet(api_base.LocalSettingsMixin,
             raise ValidationError(
                 _('Namespace "{0}" does not exist.').format(filename.namespace)
             )
-
-        self._check_path_matches_expected_repo(path, filename_ns=namespace.name)
 
         self.check_object_permissions(request, namespace)
 
@@ -273,14 +256,15 @@ class CollectionVersionCopyViewSet(api_base.ViewSet, CollectionRepositoryMixing)
 
         collection_version = self.get_collection_version()
         src_repo, dest_repo = self.get_repos()
+
         copy_task = dispatch(
-            add_and_remove,
-            exclusive_resources=[dest_repo],
+            copy_collection,
+            exclusive_resources=[src_repo, dest_repo],
             shared_resources=[src_repo],
             kwargs={
-                "repository_pk": dest_repo.pk,
-                "add_content_units": [collection_version.pk],
-                "remove_content_units": [],
+                "cv_pk_list": [collection_version.pk],
+                "src_repo_pk": src_repo.pk,
+                "dest_repo_list": [dest_repo.pk],
             }
         )
         return Response(data={"task_id": copy_task.pk}, status='202')

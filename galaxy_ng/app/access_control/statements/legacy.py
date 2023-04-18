@@ -5,7 +5,7 @@ LEGACY_STATEMENTS = {
                 "get",
                 "get_task",
                 "list",
-                "retrieve"
+                "retrieve",
             ],
             "principal": "*",
             "effect": "allow",
@@ -14,6 +14,7 @@ LEGACY_STATEMENTS = {
             "action": [
                 "create",
                 "delete",
+                "delete_by_url_params",
                 "destroy",
                 "update",
             ],

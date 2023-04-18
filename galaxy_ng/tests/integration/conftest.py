@@ -61,6 +61,9 @@ max_hub_version: This marker takes an argument that indicates the maximum hub ve
 min_hub_version: This marker takes an argument that indicates the minimum hub version
 iqe_rbac_test: imported iqe tests checking role permissions
 sync: sync tests against stage
+certified_sync: sync tests container against container
+auto_approve: run tests that require AUTO_APPROVE to be set to true
+private_repos: run tests verifying private repositories
 """
 
 
@@ -113,6 +116,11 @@ class AnsibleConfigFixture(dict):
             "password": "professor",
             "token": None,
         },
+        "ldap_non_admin": {  # this is a regular user in ldap profile
+            "username": "fry",
+            "password": "fry",
+            "token": None,
+        },
         "ee_admin": {
             "username": "ee_admin",
             "password": "redhat",
@@ -141,34 +149,38 @@ class AnsibleConfigFixture(dict):
     }
     if is_stage_environment():
         PROFILES = {
+            # ns owner to autohubtest2, not in partner engineer group, not an SSO org admin
             "basic_user": {
-                "username": {"vault_path": "secrets/qe/stage/users/aa_no_access",
+                "username": {"vault_path": "secrets/qe/stage/users/ansible-hub-qe-basic",
                              "vault_key": "username"},
-                "password": {"vault_path": "secrets/qe/stage/users/aa_no_access",
+                "password": {"vault_path": "secrets/qe/stage/users/ansible-hub-qe-basic",
                              "vault_key": "password"},
                 "token": None,
             },
+            # in partner engineer group, not an SSO org admin username: ansible-hub-qe-pe2
             "partner_engineer": {
-                "username": {"vault_path": "secrets/qe/stage/users/ansible_insights",
+                "username": {"vault_path": "secrets/qe/stage/users/ansible-hub-qe-pe",
                              "vault_key": "username"},
-                "password": {"vault_path": "secrets/qe/stage/users/ansible_insights",
+                "password": {"vault_path": "secrets/qe/stage/users/ansible-hub-qe-pe",
                              "vault_key": "password"},
-                "token": {"vault_path": "secrets/qe/stage/users/ansible_insights",
+                "token": {"vault_path": "secrets/qe/stage/users/ansible-hub-qe-pe",
                           "vault_key": "token"},
             },
+            # an SSO org admin, not in partner engineer group
             "org_admin": {
-                "username": {"vault_path": "secrets/qe/stage/users/rbac_org_admin",
+                "username": {"vault_path": "secrets/qe/stage/users/ansible-hub-qe-rbac",
                              "vault_key": "username"},
-                "password": {"vault_path": "secrets/qe/stage/users/rbac_org_admin",
+                "password": {"vault_path": "secrets/qe/stage/users/ansible-hub-qe-rbac",
                              "vault_key": "password"},
                 "token": None,
             },
+            # for stage env, this can be same user as partner_engineer profile
             "admin": {
-                "username": {"vault_path": "secrets/qe/stage/users/ansible_insights",
+                "username": {"vault_path": "secrets/qe/stage/users/ansible-hub-qe-pe",
                              "vault_key": "username"},
-                "password": {"vault_path": "secrets/qe/stage/users/ansible_insights",
+                "password": {"vault_path": "secrets/qe/stage/users/ansible-hub-qe-pe",
                              "vault_key": "password"},
-                "token": {"vault_path": "secrets/qe/stage/users/ansible_insights",
+                "token": {"vault_path": "secrets/qe/stage/users/ansible-hub-qe-pe",
                           "vault_key": "token"},
             }
         }
@@ -297,6 +309,9 @@ class AnsibleConfigFixture(dict):
                 'CONTAINER_REGISTRY',
                 'localhost:5001'
             )
+
+        elif key == 'server':
+            return self["url"].split("/api/")[0]
 
         else:
             raise Exception(f'Unknown config key: {self.namespace}.{key}')
@@ -641,3 +656,9 @@ def sync_instance_crc():
     set_synclist(client, [])
 
     return (manifest, config)
+
+
+@pytest.fixture(scope="function")
+def settings(ansible_config):
+    api_client = get_client(ansible_config("admin"))
+    return api_client("_ui/v1/settings/")

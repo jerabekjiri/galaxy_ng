@@ -2,7 +2,6 @@
 """
 
 import json
-import time
 import pytest
 
 from urllib.parse import urlparse
@@ -10,12 +9,14 @@ from urllib.parse import urlparse
 from ..utils import (
     ansible_galaxy,
     build_collection,
-    cleanup_namespace,
     get_client,
     SocialGithubClient,
-    delete_group,
     create_user,
-    delete_user
+)
+from ..utils.legacy import (
+    clean_all_roles,
+    cleanup_social_user,
+    wait_for_v1_task,
 )
 
 from jsonschema import validate as validate_json
@@ -26,107 +27,6 @@ from ..schemas import (
 
 
 pytestmark = pytest.mark.qa  # noqa: F821
-
-
-def clean_all_roles(ansible_config):
-
-    admin_config = ansible_config("admin")
-    admin_client = get_client(
-        config=admin_config,
-        request_token=False,
-        require_auth=True
-    )
-
-    pre_existing = []
-    next_url = '/api/v1/roles/'
-    while next_url:
-        resp = admin_client(next_url)
-        pre_existing.extend(resp['results'])
-        if resp['next'] is None:
-            break
-        next_url = resp['next']
-
-    usernames = [x['username'] for x in pre_existing]
-    usernames = sorted(set(usernames))
-    for username in usernames:
-        cleanup_social_user(username, ansible_config)
-
-
-def cleanup_social_user(username, ansible_config):
-    """ Should delete everything related to a social auth'ed user. """
-
-    admin_config = ansible_config("admin")
-    admin_client = get_client(
-        config=admin_config,
-        request_token=False,
-        require_auth=True
-    )
-
-    # delete any pre-existing roles from the user
-    pre_existing = []
-    next_url = f'/api/v1/roles/?owner__username={username}'
-    while next_url:
-        resp = admin_client(next_url)
-        pre_existing.extend(resp['results'])
-        if resp['next'] is None:
-            break
-        next_url = resp['next']
-    if pre_existing:
-        for pe in pre_existing:
-            role_id = pe['id']
-            role_url = f'/api/v1/roles/{role_id}/'
-            try:
-                resp = admin_client(role_url, method='DELETE')
-            except Exception:
-                pass
-
-    # cleanup the v1 namespace
-    resp = admin_client(f'/api/v1/namespaces/?name={username}', method='GET')
-    if resp['count'] > 0:
-        for result in resp['results']:
-            ns_url = f"/api/v1/namespaces/{result['id']}/"
-            try:
-                admin_client(ns_url, method='DELETE')
-            except Exception:
-                pass
-    resp = admin_client(f'/api/v1/namespaces/?name={username}', method='GET')
-    assert resp['count'] == 0
-
-    namespace_name = username.replace('-', '_').lower()
-
-    # cleanup the v3 namespace
-    cleanup_namespace(namespace_name, api_client=get_client(config=ansible_config("admin")))
-
-    # cleanup the group
-    delete_group(username, api_client=get_client(config=ansible_config("admin")))
-    delete_group(
-        'namespace:' + namespace_name,
-        api_client=get_client(config=ansible_config("admin"))
-    )
-
-    # cleanup the user
-    delete_user(username, api_client=get_client(config=ansible_config("admin")))
-
-
-def wait_for_v1_task(task_id=None, resp=None, api_client=None):
-
-    if task_id is None:
-        task_id = resp['task']
-
-    # poll till done or timeout
-    poll_url = f'/api/v1/tasks/{task_id}/'
-
-    state = None
-    counter = 0
-    while state is None or state == 'RUNNING' and counter <= 500:
-        counter += 1
-        task_resp = api_client(poll_url, method='GET')
-        state = task_resp['results'][0]['state']
-        if state != 'RUNNING':
-            break
-        time.sleep(.5)
-
-    assert state == 'SUCCESS'
 
 
 @pytest.mark.community_only
@@ -149,9 +49,29 @@ def test_community_settings(ansible_config):
     assert resp['GALAXY_SIGNATURE_UPLOAD_ENABLED'] is False
     assert resp['GALAXY_ENABLE_UNAUTHENTICATED_COLLECTION_ACCESS'] is True
     assert resp['GALAXY_ENABLE_UNAUTHENTICATED_COLLECTION_DOWNLOAD'] is True
+    assert resp['GALAXY_FEATURE_FLAGS']['display_repositories'] is False
     assert resp['GALAXY_FEATURE_FLAGS']['execution_environments'] is False
     assert resp['GALAXY_FEATURE_FLAGS']['legacy_roles'] is True
+    assert resp['GALAXY_FEATURE_FLAGS']['ai_deny_index'] is True
     assert resp['GALAXY_CONTAINER_SIGNING_SERVICE'] is None
+
+
+@pytest.mark.community_only
+def test_community_feature_flags(ansible_config):
+    """Tests feature flags are correct"""
+
+    config = ansible_config("anonymous_user")
+    api_client = get_client(
+        config=config,
+        request_token=False,
+        require_auth=False
+    )
+
+    resp = api_client('/api/_ui/v1/feature-flags/', method='GET')
+    assert resp['ai_deny_index'] is True
+    assert resp['display_repositories'] is False
+    assert resp['execution_environments'] is False
+    assert resp['legacy_roles'] is True
 
 
 @pytest.mark.community_only
@@ -521,6 +441,65 @@ def test_v1_role_pagination(ansible_config):
     assert roles == sorted(roles)
     assert len(roles) == 10
     assert len(sorted(set(roles))) == 10
+
+    # cleanup
+    clean_all_roles(ansible_config)
+
+
+@pytest.mark.community_only
+def test_v1_role_tag_filter(ansible_config):
+    """" Tests if v1 roles are auto-sorted by created """
+
+    config = ansible_config("admin")
+    api_client = get_client(
+        config=config,
+        request_token=False,
+        require_auth=True
+    )
+
+    def get_roles(page_size=1, order_by='created'):
+        roles = []
+        urls = []
+        next_url = f'/api/v1/roles/?page_size={page_size}&order_by={order_by}'
+        while next_url:
+            urls.append(next_url)
+            resp = api_client(next_url)
+            roles.extend(resp['results'])
+            next_url = resp['next']
+            if next_url:
+                o = urlparse(next_url)
+                baseurl = o.scheme + '://' + o.netloc.replace(':80', '')
+                next_url = next_url.replace(baseurl, '')
+
+        return urls, roles
+
+    # clean all roles ...
+    clean_all_roles(ansible_config)
+
+    # start the sync
+    pargs = json.dumps({"limit": 10}).encode('utf-8')
+    resp = api_client('/api/v1/sync/', method='POST', args=pargs)
+    assert isinstance(resp, dict)
+    assert resp.get('task') is not None
+    wait_for_v1_task(resp=resp, api_client=api_client)
+
+    # make tuples of created,id for all roles ...
+    urls, all_roles = get_roles(page_size=1, order_by='created')
+
+    # make a map of the tags
+    tagmap = {}
+    for role in all_roles:
+        tags = role['summary_fields']['tags']
+        for tag in tags:
+            if tag not in tagmap:
+                tagmap[tag] = []
+            tagmap[tag].append(role['id'])
+
+    # validate we can filter on every tag possible
+    for tag, role_ids in tagmap.items():
+        tresp = api_client(f'/api/v1/roles/?tag={tag}')
+        assert tresp['count'] == len(role_ids)
+        assert sorted(role_ids) == sorted([x['id'] for x in tresp['results']])
 
     # cleanup
     clean_all_roles(ansible_config)

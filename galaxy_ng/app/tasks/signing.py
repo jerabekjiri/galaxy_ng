@@ -1,9 +1,8 @@
 import logging
 from pulpcore.plugin.tasking import dispatch
 from pulp_ansible.app.tasks.signature import sign
-from pulp_ansible.app.models import AnsibleRepository, CollectionVersionSignature
 
-from .promotion import move_content
+from .promotion import move_collection
 
 log = logging.getLogger(__name__)
 
@@ -44,19 +43,11 @@ def sign_and_move(signing_service_pk, collection_version_pk, source_repo_pk, des
         signing_service_href=signing_service_pk
     )
 
-    # Read signatures created on the source repository
-    source_repo = AnsibleRepository.objects.get(pk=source_repo_pk)
-    signatures_pks = CollectionVersionSignature.objects.filter(
-        signed_collection=collection_version_pk,
-        pk__in=source_repo.content.values_list("pk", flat=True)
-    ).values_list("pk", flat=True)
-
     # Move content from source to destination
-    move_content(
-        collection_version_pk=collection_version_pk,
-        source_repo_pk=source_repo_pk,
-        dest_repo_pk=dest_repo_pk,
-        signatures_pks=list(signatures_pks),
+    move_collection(
+        cv_pk_list=[collection_version_pk, ],
+        src_repo_pk=source_repo_pk,
+        dest_repo_list=[dest_repo_pk],
     )
 
 

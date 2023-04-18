@@ -154,8 +154,7 @@ class CollectionVersionSerializer(CollectionVersionBaseSerializer):
 
         # get all repos where content exists in a RepositoryVersion
         content = collection_version.content_ptr
-        all_repos = content.repositories.all().distinct().exclude(
-            name__startswith='inbound-').exclude(name__endswith='-synclist')
+        all_repos = content.repositories.all().distinct().exclude(name__endswith='-synclist')
 
         qs = CollectionVersion.objects.filter(pk=collection_version.pk)
         cv_in_repo_latest_version = []
@@ -220,7 +219,7 @@ class CollectionDetailSerializer(_CollectionSerializer):
         versions_in_repo = CollectionVersion.objects.filter(
             pk__in=repository_version.content,
             collection=obj.collection,
-        )
+        ).only("content_ptr_id", "version")
         versions_in_repo = sorted(
             versions_in_repo, key=lambda obj: semantic_version.Version(obj.version), reverse=True
         )

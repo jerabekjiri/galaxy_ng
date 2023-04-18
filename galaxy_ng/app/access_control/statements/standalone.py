@@ -8,57 +8,98 @@ from galaxy_ng.app.access_control.statements.legacy import LEGACY_STATEMENTS
 
 _collection_statements = [
     {
-        "action": ["list", "retrieve"],
+        "action": "list",
         "principal": "authenticated",
         "effect": "allow",
+        "condition": "v3_can_view_repo_content"
     },
     {
-        "action": ["list", "retrieve"],
+        "action": "list",
         "principal": "anonymous",
         "effect": "allow",
-        "condition": "unauthenticated_collection_access_enabled"
+        "condition": ["unauthenticated_collection_access_enabled", "v3_can_view_repo_content"],
+    },
+    {
+        "action": "retrieve",
+        "principal": "authenticated",
+        "effect": "allow",
+        "condition": "v3_can_view_repo_content",
+    },
+    {
+        "action": "retrieve",
+        "principal": "anonymous",
+        "effect": "allow",
+        "condition": ["unauthenticated_collection_access_enabled", "v3_can_view_repo_content"],
     },
     {
         "action": "destroy",
         "principal": "authenticated",
         "effect": "allow",
-        "condition": "has_model_perms:ansible.delete_collection",
+        "condition": ["has_model_perms:ansible.delete_collection", "v3_can_view_repo_content"],
     },
     {
         "action": ["download"],
         "principal": 'authenticated',
         "effect": "allow",
+        "condition": "v3_can_view_repo_content"
     },
     {
         "action": ["download"],
         "principal": 'anonymous',
         "effect": "allow",
-        "condition": "unauthenticated_collection_download_enabled",
+        "condition": ["unauthenticated_collection_download_enabled", "v3_can_view_repo_content"],
     },
     {
         "action": "create",
         "principal": "authenticated",
         "effect": "allow",
-        "condition": "can_create_collection"
+        "condition": ["can_create_collection", "v3_can_view_repo_content"],
     },
     {
         "action": "update",
         "principal": "authenticated",
         "effect": "allow",
-        "condition": "can_update_collection"
+        "condition": ["can_update_collection", "v3_can_view_repo_content"]
     },
     {
         "action": ["copy_content", "move_content"],
         "principal": "authenticated",
         "effect": "allow",
-        "condition": "has_model_perms:ansible.modify_ansible_repo_content"
+        "condition": [
+            "has_model_perms:ansible.modify_ansible_repo_content", "v3_can_view_repo_content"]
     },
     {
         "action": "sign",
         "principal": "authenticated",
         "effect": "allow",
-        "condition": "can_sign_collections"
+        "condition": ["can_sign_collections", "v3_can_view_repo_content"]
     }
+]
+
+_group_statements = [
+    {
+        "action": ["list", "retrieve"],
+        "principal": "authenticated",
+        "effect": "allow",
+    },
+    {
+        "action": "destroy",
+        "principal": "authenticated",
+        "effect": "allow",
+        "condition": "has_model_perms:galaxy.delete_group"
+    },
+    {
+        "action": "create",
+        "principal": "authenticated",
+        "effect": "allow",
+        "condition": "has_model_perms:galaxy.add_group"
+    },
+    {
+        "action": ["update", "partial_update"],
+        "principal": "authenticated",
+        "effect": "allow",
+        "condition": "has_model_perms:galaxy.update_group"
+    },
 ]
 
 _deny_all = [
@@ -79,167 +120,6 @@ _read_only = [
 
 STANDALONE_STATEMENTS = {
     'CollectionViewSet': _collection_statements,
-    'pulp_ansible/v3/collections': _collection_statements,
-    'pulp_ansible/v3/collection-versions': _collection_statements,
-    'pulp_ansible/v3/collection-versions/docs': _collection_statements,
-    'pulp_ansible/v3/collections/imports': _collection_statements,
-    'pulp_ansible/v3/repo-metadata': _collection_statements,
-
-    'repositories/ansible/ansible': [
-        {
-            "action": "retrieve",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_or_obj_perms:ansible.view_ansiblerepository"
-        },
-        {
-            "action": "list",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_perms:ansible.view_ansiblerepository"
-        },
-        {
-            "action": "create",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_perms:ansible.add_ansiblerepository"
-        },
-        {
-            "action": ["modify", "sync", "rebuild_metadata", "sign"],
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_or_obj_perms:ansible.change_ansiblerepository"
-        },
-        {
-            "action": "destroy",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_or_obj_perms:ansible.delete_ansiblerepository"
-        },
-    ],
-
-    "distributions/ansible/ansible": [
-        {
-            "action": "retrieve",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_distribution_repo_perms:ansible.view_ansiblerepository"
-        },
-        {
-            "action": "list",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_distribution_repo_perms:ansible.view_ansiblerepository"
-        },
-        {
-            "action": "create",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_distribution_repo_perms:ansible.add_ansiblerepository"
-        },
-        {
-            "action": "update",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_distribution_repo_perms:ansible.change_ansiblerepository"
-        },
-        {
-            "action": "destroy",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_distribution_repo_perms:ansible.delete_ansiblerepository"
-        },
-    ],
-
-    'remotes/ansible/collection': [
-        {
-            "action": "retrieve",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_or_obj_perms:ansible.view_collectionremote"
-        },
-        {
-            "action": "list",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_perms:ansible.view_collectionremote"
-        },
-        {
-            "action": "create",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_perms:ansible.add_collectionremote"
-        },
-        {
-            "action": "update",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_or_obj_perms:ansible.change_collectionremote"
-        },
-        {
-            "action": "destroy",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_or_obj_perms:ansible.delete_collectionremote"
-        },
-    ],
-
-    'repositories/ansible/ansible/versions': [
-        {
-            "action": "retrieve",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_repository_model_or_obj_perms:ansible.view_ansiblerepository"
-        },
-        {
-            "action": "list",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_repository_model_or_obj_perms:ansible.view_ansiblerepository"
-        },
-        {
-            "action": "create",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_repository_model_or_obj_perms:ansible.add_ansiblerepository"
-        },
-        {
-            "action": ["rebuild_metadata", "repair"],
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_repository_model_or_obj_perms:ansible.change_ansiblerepository"
-        },
-        {
-            "action": "destroy",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_repository_model_or_obj_perms:ansible.delete_ansiblerepository"
-        },
-    ],
-
-    # The following endpoints are related to issue https://issues.redhat.com/browse/AAH-224
-    # For now endpoints are temporary deactivated
-    'pulp_ansible/v3/collection-versions/all': _deny_all,
-    'pulp_ansible/v3/collections/all': _deny_all,
-
-    # disable upload and download APIs since we're not using them yet
-    'pulp_ansible/v3/collections/upload': _deny_all,
-    'pulp_ansible/v3/collections/download': _deny_all,
-
-    'pulp_ansible/v3/legacy-redirected-viewset': [
-        {
-            "action": "*",
-            "principal": "authenticated",
-            "effect": "allow",
-        },
-
-        # we need the redirect in order to support anonymous downloads when the options are enabled
-        {
-            "action": "*",
-            "principal": "anonymous",
-            "effect": "allow",
-        }
-    ],
 
     "AppRootViewSet": [
         {
@@ -255,6 +135,20 @@ STANDALONE_STATEMENTS = {
         },
     ],
 
+    'AIDenyIndexView': [
+        {
+            "action": ["ai-deny-index-list"],
+            "principal": "*",
+            "effect": "allow",
+        },
+        {
+            "action": ["ai-deny-index-add", "ai-deny-index-delete"],
+            "principal": "authenticated",
+            "effect": "allow",
+            "condition": "can_edit_ai_deny_index",
+        },
+    ],
+
     'NamespaceViewSet': [
         {
             "action": ["list", "retrieve"],
@@ -265,7 +159,7 @@ STANDALONE_STATEMENTS = {
             "action": ["list", "retrieve"],
             "principal": "anonymous",
             "effect": "allow",
-            "condition": "unauthenticated_collection_access_enabled"
+            "condition": ["unauthenticated_collection_access_enabled"]
         },
         {
             "action": "destroy",
@@ -399,31 +293,7 @@ STANDALONE_STATEMENTS = {
             "effect": "allow"
         }
     ],
-    'GroupViewSet': [
-        {
-            "action": ["list", "retrieve"],
-            "principal": "authenticated",
-            "effect": "allow",
-        },
-        {
-            "action": "destroy",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_perms:galaxy.delete_group"
-        },
-        {
-            "action": "create",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_perms:galaxy.add_group"
-        },
-        {
-            "action": "update",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_perms:galaxy.update_group"
-        },
-    ],
+    'GroupViewSet': _group_statements,
     'DistributionViewSet': [
         {
             "action": ["list", "retrieve"],
@@ -544,43 +414,6 @@ STANDALONE_STATEMENTS = {
             "condition": "has_distro_permission:container.change_containerdistribution"
         },
     ],
-
-    'groups/roles': [
-        {
-            "action": ["list", "retrieve"],
-            "principal": "authenticated",
-            "effect": "allow",
-        },
-        {
-            "action": "create",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_perms:galaxy.change_group"
-        },
-        {
-            "action": "destroy",
-            "principal": "authenticated",
-            "effect": "allow",
-            "condition": "has_model_perms:galaxy.change_group"
-        },
-        {
-            "action": "*",
-            "principal": "admin",
-            "effect": "allow"
-        }
-    ],
-    'roles': [
-        {
-            "action": ["list"],
-            "principal": "authenticated",
-            "effect": "allow",
-        },
-        {
-            "action": "*",
-            "principal": "admin",
-            "effect": "allow"
-        }
-    ]
 }
 
 STANDALONE_STATEMENTS.update(LEGACY_STATEMENTS)

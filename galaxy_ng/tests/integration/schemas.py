@@ -148,6 +148,7 @@ schema_featureflags = {
         'display_signatures',
         'execution_environments',
         'container_signing',
+        'ai_deny_index',
         '_messages',
     ],
     'properties': {
@@ -160,6 +161,7 @@ schema_featureflags = {
         'display_signatures': {'type': 'boolean'},
         'execution_environments': {'type': 'boolean'},
         'container_signing': {'type': 'boolean'},
+        'ai_deny_index': {'type': 'boolean'},
         '_messages': {'type': 'array'},
     }
 }
@@ -561,5 +563,28 @@ schema_pulp_roledetail = {
         'description': {'type': 'string'},
         'permissions': {'type': 'array'},
         'locked': {'type': 'boolean'},
+    }
+}
+
+schema_ui_collection_summary = {
+    'type': 'object',
+    'additional_properties': False,
+    'required': [
+        'all_versions',
+        'download_count',
+        'id',
+        'latest_version',
+        'namespace',
+        'name',
+        'sign_state'
+    ],
+    'properties': {
+        'id': {'type': 'string'},
+        'namespace': {'type': 'object'},
+        'name': {'type': 'string'},
+        'download_count': {'type': 'number'},
+        'all_versions': {'type': 'array'},
+        'latest_version': {'type': 'object'},
+        'sign_state': {'type': 'string'},
     }
 }

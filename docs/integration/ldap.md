@@ -36,6 +36,8 @@ ldapsearch -H ldap://localhost:10389 -x -b "ou=people,dc=planetexpress,dc=com" -
 The following settings can be added to either `/etc/pulp/settings.py` or exported as environment
 variables prefixed with `PULP_`.
 
+!!! note
+    when using AAP Platform installer the variables are set under `automationhub_ldap` and `ldap_extra_settings` on the installer inventory file.
 
 Example using environment variables:
 
@@ -61,14 +63,33 @@ PULP_TOKEN_AUTH_DISABLED=true
 
 ### Required setting
 
-`django_auth_ldap` must be included as the first authentication backend, there is a preset called
+For `django_auth_ldap` to be included as the first authentication backend, there is a preset called
 `ldap`
 
 ```bash
 PULP_AUTHENTICATION_BACKEND_PRESET=ldap
 ```
 
-> You can set it to `custom` if you really want to override `PULP_AUTHENTICATION_BACKENDS` variable.
+#### customizing the order of authentication backends 
+
+Set `PULP_AUTHENTICATION_BACKEND_PRESET` to `custom` if you really want to override `PULP_AUTHENTICATION_BACKENDS` variable, this might be useful if you need to change the order of evaluated backends.
+
+<details>
+<summary>Example</summary>
+
+
+```python
+AUTHENTICATION_BACKEND_PRESET='custom'
+# arrange the order
+AUTHENTICATION_BACKENDS=[
+  "django.contrib.auth.backends.ModelBackend",
+  "pulpcore.backends.ObjectRolePermissionBackend",
+  "galaxy_ng.app.auth.ldap.GalaxyLDAPBackend",
+]
+```
+
+</details>
+
 
 ### Required Specific django_auth_ldap settings
 
@@ -86,7 +107,7 @@ PULP_AUTH_LDAP_USER_SEARCH_SCOPE="SUBTREE"
 PULP_AUTH_LDAP_USER_SEARCH_FILTER="(uid=%(user)s)"
 PULP_AUTH_LDAP_GROUP_SEARCH_BASE_DN="ou=people,dc=planetexpress,dc=com"
 PULP_AUTH_LDAP_GROUP_SEARCH_SCOPE="SUBTREE"
-PULP_AUTH_LDAP_GROUP_SEARCH_FILTER = "(objectClass=Group)"
+PULP_AUTH_LDAP_GROUP_SEARCH_FILTER="(objectClass=Group)"
 PULP_AUTH_LDAP_GROUP_TYPE_CLASS="django_auth_ldap.config:GroupOfNamesType"
 ```
 
@@ -114,6 +135,8 @@ PULP_AUTH_LDAP_USER_ATTR_MAP={first_name="givenName", last_name="sn", email="mai
 
 PULP_AUTH_LDAP_MIRROR_GROUPS=true
 # The above is what enabled group mirroring
+# the same variable also accepts a list of groups to mirror
+PULP_AUTH_LDAP_MIRROR_GROUPS=['admin_staff', 'ship_crew']
 ```
 
 You can limit which groups are mirrored if you don't want all the groups to be added do Hub.
@@ -130,7 +153,23 @@ PULP_AUTH_LDAP_REQUIRE_GROUP='hub_users'
 # Only users belonging to this group will be allowed to login
 ```
 
-Mapping groups from LDAP to user attributes on Django:
+### Mirroring only existing groups on Hub
+
+```bash
+PULP_GALAXY_LDAP_MIRROR_ONLY_EXISTING_GROUPS=true
+```
+
+When set to `true` only groups that already exist on Hub will be mirrored,
+this means that users will login but not all the user groups from LDAP
+will be mirrored, the authentication backend will map to the user only
+the groups that matches the same name of groups existing in Hub.
+
+!!! note
+  When this option is set the variable `AUTH_LDAP_MIRROR_GROUPS` will
+  be automatically set to `true` and `AUTH_LDAP_MIRROR_GROUPS_EXCEPT` will default
+  to `false` regardless of the value you set for those 2 variables.
+
+### Mapping groups from LDAP to user attributes on Django:
 
 Ex: Users belonging to `admin_staff` on LDAP is `superuser` on Django.
 
@@ -182,5 +221,18 @@ PULP_GALAXY_LDAP_LOGGING=true
 PULP_AUTH_LDAP_CACHE_TIMEOUT=3600
 ```
 
+### LDAP REferrals
+
+MS Active Directory but search operation may result in the exception `ldap.OPERATIONS_ERROR` with the diagnostic message text “In order to perform this operation a successful bind must be completed on the connection.” Alternatively, a Samba 4 AD returns the diagnostic message “Operation unavailable without authentication”. 
+
+To fix that problem the LDAP REFERALS lookup can be disabled:
+
+```bash
+PULP_GALAXY_LDAP_DISABLE_REFERRALS=true
+```
+
+The above will set the proper option to `AUTH_LDAP_CONNECTION_OPTIONS` in the settings.
+
+---
 
 More settings can be found on https://django-auth-ldap.readthedocs.io/en/latest/reference.html#settings

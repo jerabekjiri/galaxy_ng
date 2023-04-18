@@ -14,6 +14,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.locale.LocaleMiddleware',
+    'django_guid.middleware.guid_middleware',
     # END: Pulp standard middleware
     'django_prometheus.middleware.PrometheusAfterMiddleware',
     'django_currentuser.middleware.ThreadLocalUserMiddleware',
@@ -72,8 +73,10 @@ GALAXY_DEPLOYMENT_MODE = 'standalone'
 
 # Dictionary with True|False values for the application to turn on/off features
 GALAXY_FEATURE_FLAGS = {
+    'display_repositories': True,
     'execution_environments': True,  # False will make execution_environments endpoints 404
     'legacy_roles': False,
+    'ai_deny_index': False,  # False will make _ui/v1/ai_deny_index/ to 404
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -158,6 +161,9 @@ GALAXY_ENABLE_API_ACCESS_LOG = False
 SOCIAL_AUTH_KEYCLOAK_KEY = None
 SOCIAL_AUTH_KEYCLOAK_SECRET = None
 SOCIAL_AUTH_KEYCLOAK_PUBLIC_KEY = None
+
+# Extra KEYCLOAK Logout URL
+SOCIAL_AUTH_KEYCLOAK_LOGOUT_URL = None
 KEYCLOAK_PROTOCOL = None
 KEYCLOAK_HOST = None
 KEYCLOAK_PORT = None
@@ -219,7 +225,7 @@ AUTH_LDAP_GROUP_SEARCH_FILTER = None
 AUTHENTICATION_BACKEND_PRESET = 'local'  # 'ldap' or 'keycloak' or 'local' or 'custom'
 AUTHENTICATION_BACKEND_PRESETS_DATA = {
     'ldap': [
-        "django_auth_ldap.backend.LDAPBackend",
+        "galaxy_ng.app.auth.ldap.GalaxyLDAPBackend",
         "django.contrib.auth.backends.ModelBackend",
         "pulpcore.backends.ObjectRolePermissionBackend"
     ],
@@ -237,3 +243,10 @@ SOCIAL_AUTH_GITHUB_BASE_URL = os.environ.get('SOCIAL_AUTH_GITHUB_BASE_URL', 'htt
 SOCIAL_AUTH_GITHUB_API_URL = os.environ.get('SOCIAL_AUTH_GITHUB_BASE_URL', 'https://api.github.com')
 SOCIAL_AUTH_GITHUB_KEY = os.environ.get('SOCIAL_AUTH_GITHUB_KEY')
 SOCIAL_AUTH_GITHUB_SECRET = os.environ.get('SOCIAL_AUTH_GITHUB_SECRET')
+
+
+# When set to True, galaxy will only load ldap groups into local
+# groups that already exist in the database. Ex: if user with ldap
+# groups foo and bar login and only group foo exists in the system,
+# the user will be added to foo and bar will be ignored.
+GALAXY_LDAP_MIRROR_ONLY_EXISTING_GROUPS = False

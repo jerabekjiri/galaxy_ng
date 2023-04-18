@@ -3,11 +3,14 @@ Signal handlers for the Galaxy application.
 Those signals are loaded by
 galaxy_ng.app.__init__:PulpGalaxyPluginAppConfig.ready() method.
 """
-from django.apps import apps
 from django.dispatch import receiver
-from django.db.models.signals import post_save, post_migrate
-from pulp_ansible.app.models import AnsibleDistribution, AnsibleRepository, Collection
-from galaxy_ng.app.access_control.statements import PULP_CONTAINER_VIEWSETS
+from django.db.models.signals import post_save
+from pulp_ansible.app.models import (
+    AnsibleDistribution,
+    AnsibleRepository,
+    Collection,
+    AnsibleNamespaceMetadata
+)
 from galaxy_ng.app.models import Namespace
 from pulpcore.plugin.models import ContentRedirectContentGuard
 
@@ -49,20 +52,27 @@ def create_namespace_if_not_present(sender, instance, created, **kwargs):
     Namespace.objects.get_or_create(name=instance.namespace)
 
 
-def set_pulp_container_access_policies(sender, **kwargs):
-    apps = kwargs.get("apps")
-    if apps is None:
-        from django.apps import apps
-    AccessPolicy = apps.get_model("core", "AccessPolicy")
+@receiver(post_save, sender=AnsibleNamespaceMetadata)
+def associate_namespace_metadata(sender, instance, created, **kwargs):
+    """
+    Update the galaxy namespace when a new pulp ansible namespace
+    object is added to the system.
+    """
 
-    print("Overriding pulp_container access policy")
-    for view in PULP_CONTAINER_VIEWSETS:
-        policy, created = AccessPolicy.objects.update_or_create(
-            viewset_name=view, defaults={**PULP_CONTAINER_VIEWSETS[view], "customized": True})
+    ns, created = Namespace.objects.get_or_create(name=instance.name)
+    ns_metadata = ns.last_created_pulp_metadata
 
+    def _update_metadata():
+        ns.last_created_pulp_metadata = instance
+        ns.company = instance.company
+        ns.email = instance.email
+        ns.description = instance.description
+        ns.resources = instance.resources
+        ns.set_links([{"name": x, "url": instance.links[x]} for x in instance.links])
+        ns.save()
 
-post_migrate.connect(
-    set_pulp_container_access_policies,
-    sender=apps.get_app_config("galaxy"),
-    dispatch_uid="override_pulp_container_access_policies"
-)
+    if created or ns_metadata is None:
+        _update_metadata()
+
+    elif ns.metadata_sha256 != instance.metadata_sha256:
+        _update_metadata()
