@@ -1,0 +1,52 @@
+---
+name: i18n
+
+on:
+  pull_request:
+    branches:
+      - '**'
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+  
+  # allow running manually
+  #  workflow_dispatch:
+  # # run weekly
+  # schedule:
+  # - cron: '30 5 * * 0'
+
+jobs:
+  i18n:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        branch:
+        - 'master'
+        - 'stable-4.4'
+        - 'stable-4.5'
+        - 'stable-4.6'
+        - 'stable-4.7'
+
+    steps:
+
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ matrix.branch }}
+
+    - name: "extract strings"
+      run: django-admin makemessages --all
+
+    - name: "compile strings"
+      run: django-admin compilemessages
+
+    # - name: "commit"
+    #   run: |
+    #     git config --global user.name 'GH Actions'
+    #     git config --global user.email 'gh_actions@users.noreply.github.com'
+    #     git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/ansible/ansible-hub-ui.git
+    #     git add locale/
+    #     if git commit -m "Automated updated of i18n strings on $(date +'%Y-%m-%d')"; then
+    #       git push --set-upstream origin
+    #     fi
