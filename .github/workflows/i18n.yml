@@ -16,10 +16,10 @@ jobs:
       matrix:
         branch:
         - 'master'
-        - 'stable-4.4'
-        - 'stable-4.5'
-        - 'stable-4.6'
-        - 'stable-4.7'
+        # - 'stable-4.4'
+        # - 'stable-4.5'
+        # - 'stable-4.6'
+        # - 'stable-4.7'
 
     steps:
       - uses: actions/checkout@v3
@@ -54,12 +54,12 @@ jobs:
           cd galaxy_ng
           django-admin compilemessages
 
-      - name: Commit changes
-        run: |
-          git config --global user.name 'GH Actions'
-          git config --global user.email 'gh_actions@users.noreply.github.com'
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/ansible/galaxy_ng.git
-          git add galaxy_ng/locale/
-          if git commit -m "Automated updated of i18n strings on $(date +'%Y-%m-%d')"; then
-            git push --set-upstream origin
-          fi
+      # - name: Commit changes
+      #   run: |
+      #     git config --global user.name 'GH Actions'
+      #     git config --global user.email 'gh_actions@users.noreply.github.com'
+      #     git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/ansible/galaxy_ng.git
+      #     git add galaxy_ng/locale/
+      #     if git commit -m "Automated updated of i18n strings on $(date +'%Y-%m-%d')"; then
+      #       git push --set-upstream origin
+      #     fi
