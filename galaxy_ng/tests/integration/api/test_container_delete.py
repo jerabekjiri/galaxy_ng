@@ -3,11 +3,16 @@ import pytest
 from ..utils import get_client, wait_for_task
 from ansible.galaxy.api import GalaxyError
 
+import logging
+
+logger = logging.getLogger()
 
 @pytest.mark.standalone_only
 def test_delete_ee_and_content(ansible_config):
     config = ansible_config("admin")
     api_prefix = config.get("api_prefix").rstrip("/")
+
+    logger.warning(f'api_prefix: {api_prefix}')
 
     # Pull alpine image
     subprocess.check_call(["docker", "pull", "alpine"])
@@ -50,8 +55,8 @@ def test_delete_ee_and_content(ansible_config):
     assert len(content_list["results"]) > 0
 
     # Delete repository, contents, and artifacts
-    delete_response = client(f"{api_prefix}/v3/"
-                             "plugin/execution-environments/repositories/alpine/", method='DELETE')
+    delete_response = client(f"{api_prefix}/_ui/v1/"
+                             "execution-environments/repositories/alpine/", method='DELETE')
     resp = wait_for_task(client, delete_response, timeout=10000)
     assert resp["state"] == "completed"
 
@@ -133,8 +138,8 @@ def test_shared_content_is_not_deleted(ansible_config):
     assert content_list_1 == content_list_2
 
     # Delete repository, contents, and artifacts for alpine1, NOT alpine2
-    delete_response = client(f"{api_prefix}/v3/"
-                             "plugin/execution-environments/repositories/alpine1/", method='DELETE')
+    delete_response = client(f"{api_prefix}/_ui/v1/"
+                             "execution-environments/repositories/alpine1/", method='DELETE')
     resp = wait_for_task(client, delete_response, timeout=10000)
     assert resp["state"] == "completed"
 
