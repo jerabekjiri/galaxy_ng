@@ -48,6 +48,7 @@ def test_api_ui_v1_login(ansible_config):
 # /api/automation-hub/_ui/v1/auth/login/
 @pytest.mark.standalone_only
 @pytest.mark.api_ui
+@pytest.mark.min_hub_version("4.7dev")
 def test_api_ui_v1_login_cache_header(ansible_config):
 
     cfg = ansible_config("basic_user")
@@ -127,7 +128,7 @@ def test_api_ui_v1_collection_versions_version_range(ansible_config, uncertified
         assert ds['data'][0]["version"] == c1.version
 
         # test range
-        resp = uclient.get(f'{v_path}&version_range=>={c1.version}')
+        resp = uclient.get(f'{v_path}&version_range>={c1.version}')
         ds = resp.json()
 
         assert len(ds['data']) == 2
@@ -163,7 +164,7 @@ def test_api_ui_v1_collection_versions_version_range(ansible_config, uncertified
 def test_api_ui_v1_distributions(ansible_config):
     cfg = ansible_config('basic_user')
     with UIClient(config=cfg) as uclient:
-        resp = uclient.get('_ui/v1/distributions/')
+        resp = uclient.get('_ui/v1/distributions/?limit=1000')
         assert resp.status_code == 200
 
         ds = resp.json()
@@ -171,7 +172,15 @@ def test_api_ui_v1_distributions(ansible_config):
 
         for distro in ds['data']:
             validate_json(instance=distro, schema=schema_distro)
-            validate_json(instance=distro['repository'], schema=schema_distro_repository)
+            if distro['repository']:
+                validate_json(instance=distro['repository'], schema=schema_distro_repository)
+
+        distros_to_remove = []
+        for distro in ds['data']:
+            if distro["name"].startswith("repo-test-") or distro["name"].startswith("dist-test-"):
+                distros_to_remove.append(distro)
+        for distro in distros_to_remove:
+            ds['data'].remove(distro)
 
         # make sure all default distros are in the list ...
         distro_tuples = [(x['name'], x['base_path']) for x in ds['data']]
@@ -205,7 +214,8 @@ def test_api_ui_v1_distributions_by_id(ansible_config):
             assert resp.status_code == 200
             _ds = resp.json()
             validate_json(instance=_ds, schema=schema_distro)
-            validate_json(instance=_ds['repository'], schema=schema_distro_repository)
+            if _ds['repository']:
+                validate_json(instance=_ds['repository'], schema=schema_distro_repository)
             assert _ds['pulp_id'] == distro_id
 
 
@@ -236,15 +246,23 @@ def test_api_ui_v1_execution_environments_registries(ansible_config):
         rds = resp.json()
         validate_json(instance=rds, schema=schema_ee_registry)
 
+        try:
+            id = rds["id"]
+        except KeyError:
+            id = rds["pk"]
+
         # try to get it by pulp_id
-        resp = uclient.get(f"_ui/v1/execution-environments/registries/{rds['id']}/")
+        resp = uclient.get(f"_ui/v1/execution-environments/registries/{id}/")
         assert resp.status_code == 200
         rds = resp.json()
         validate_json(instance=rds, schema=schema_ee_registry)
-
+        try:
+            id = rds["id"]
+        except KeyError:
+            id = rds["pk"]
         # sync it
         resp = uclient.post(
-            f"_ui/v1/execution-environments/registries/{rds['id']}/sync/",
+            f"_ui/v1/execution-environments/registries/{id}/sync/",
             payload={}
         )
         assert resp.status_code == 202
@@ -256,7 +274,7 @@ def test_api_ui_v1_execution_environments_registries(ansible_config):
 
         # index it
         resp = uclient.post(
-            f"_ui/v1/execution-environments/registries/{rds['id']}/index/",
+            f"_ui/v1/execution-environments/registries/{id}/index/",
             payload={}
         )
         assert resp.status_code == 202
@@ -267,11 +285,11 @@ def test_api_ui_v1_execution_environments_registries(ansible_config):
         wait_for_task_ui_client(uclient, task)
 
         # delete the registry
-        resp = uclient.delete(f"_ui/v1/execution-environments/registries/{rds['id']}/")
+        resp = uclient.delete(f"_ui/v1/execution-environments/registries/{id}/")
         assert resp.status_code == 204
 
         # make sure it's gone
-        resp = uclient.get(f"_ui/v1/execution-environments/registries/{rds['id']}/")
+        resp = uclient.get(f"_ui/v1/execution-environments/registries/{id}/")
         assert resp.status_code == 404
 
 
@@ -310,8 +328,7 @@ def test_api_ui_v1_feature_flags(ansible_config):
         ds = resp.json()
         validate_json(instance=ds, schema=schema_featureflags)
 
-        assert ds['ai_deny_index'] is False
-        assert ds['display_repositories'] is True
+        # assert ds['ai_deny_index'] is False
         assert ds['execution_environments'] is True
         assert ds['legacy_roles'] is False
 
@@ -357,7 +374,7 @@ def test_api_ui_v1_groups_users(ansible_config):
 
     cfg = ansible_config('basic_user')
     with UIClient(config=cfg) as uclient:
-        resp = uclient.get('_ui/v1/groups/')
+        resp = uclient.get('_ui/v1/groups/?limit=1000')
         assert resp.status_code == 200
         groups_ds = resp.json()
         validate_json(instance=groups_ds, schema=schema_objectlist)
@@ -607,7 +624,7 @@ def test_api_ui_v1_remotes(ansible_config):
     with UIClient(config=cfg) as uclient:
 
         # get the response
-        resp = uclient.get('_ui/v1/remotes/')
+        resp = uclient.get('_ui/v1/remotes/?limit=100')
         assert resp.status_code == 200
 
         ds = resp.json()

@@ -60,8 +60,8 @@ def test_api_publish(ansible_config, artifact, upload_artifact, use_distribution
     config = ansible_config("basic_user")
     api_client = get_client(config)
 
-    # inbound repos aren't created anymore. This will create one to verify that they still work on
-    # legacy clients
+    # inbound repos aren't created anymore. This will create one to verify that they still
+    # work on legacy clients
     if use_distribution:
         admin_client = get_client(ansible_config(profile="admin"))
         distros = admin_client("pulp/api/v3/distributions/ansible/"
@@ -89,6 +89,7 @@ def test_api_publish(ansible_config, artifact, upload_artifact, use_distribution
             raise
         else:
             resp = wait_for_task(api_client, resp)
+            logging.debug(resp)
             assert resp["state"] == "completed"
 
 
@@ -99,6 +100,8 @@ def test_validated_publish(ansible_config, artifact, upload_artifact):
 
     config = ansible_config("admin")
     api_client = get_client(config)
+    logging.debug(f"artifact name {artifact.name}")
+    logging.debug(f"artifact namespace {artifact.namespace}")
 
     with patch("ansible.galaxy.api.GalaxyError", CapturingGalaxyError):
         try:

@@ -20,6 +20,7 @@ def local_container():
 
 # /api/automation-hub/v3/plugin/execution-environments/repositories/{base_path}/_content/history/
 @pytest.mark.standalone_only
+@pytest.mark.min_hub_version("4.7dev")
 def test_api_v3_plugin_execution_environments_repositories_content_history(
     ansible_config,
     local_container
@@ -44,6 +45,7 @@ def test_api_v3_plugin_execution_environments_repositories_content_history(
 # /api/automation-hub/v3/plugin/execution-environments/repositories/{base_path}/_content/images/
 # /api/automation-hub/v3/plugin/execution-environments/repositories/{base_path}/_content/images/{manifest_ref}/
 @pytest.mark.standalone_only
+@pytest.mark.min_hub_version("4.7dev")
 def test_api_v3_plugin_execution_environments_repositories_content_images(
     ansible_config,
     local_container
@@ -67,6 +69,7 @@ def test_api_v3_plugin_execution_environments_repositories_content_images(
 
 # /api/automation-hub/v3/plugin/execution-environments/repositories/{base_path}/_content/readme/
 @pytest.mark.standalone_only
+@pytest.mark.min_hub_version("4.7dev")
 def test_api_v3_plugin_execution_environments_repositories_content_readme(
     ansible_config,
     local_container
@@ -104,9 +107,15 @@ def test_api_v3_plugin_execution_environments_repositories_content_readme(
     assert 'created_at' in resp
     assert 'updated_at' in resp
 
+    delete_response = api_client(f"{api_prefix}/v3/plugin/execution-environments/"
+                                 f"repositories/{name}/", method='DELETE')
+    resp = wait_for_task(api_client, delete_response, timeout=10000)
+    assert resp["state"] == "completed"
+
 
 # /api/automation-hub/v3/plugin/execution-environments/repositories/{base_path}/_content/tags/
 @pytest.mark.standalone_only
+@pytest.mark.min_hub_version("4.7dev")
 def test_api_v3_plugin_execution_environments_repositories_content_tags(
     ansible_config,
     local_container
@@ -134,6 +143,7 @@ def test_api_v3_plugin_execution_environments_repositories_content_tags(
 # /api/automation-hub/v3/plugin/execution-environments/repositories/
 # /api/automation-hub/v3/plugin/execution-environments/repositories/{base_path}/
 @pytest.mark.standalone_only
+@pytest.mark.min_hub_version("4.7dev")
 def test_api_v3_plugin_execution_environments_repositories(ansible_config, local_container):
     ns_name = local_container.get_namespace()['name']
     name = local_container.get_container()['name']
@@ -184,7 +194,7 @@ def test_api_v3_plugin_execution_environments_repositories(ansible_config, local
     # assert pulp_labels dictionary is in response
     assert type(repository_resp['pulp']['repository']['pulp_labels']) == dict
 
-    # delete the respository
+    # delete the repository
     delete_repository_resp = api_client(
         f'{api_prefix}/v3/plugin/execution-environments/repositories/{name}/',
         method="DELETE"

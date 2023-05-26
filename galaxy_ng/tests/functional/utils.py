@@ -188,7 +188,8 @@ class TestCaseUsingBindings(PulpTestCase):
         cls.container_repo_api = ContainerRepositoryApi(cls.client)
         cls.container_remotes_api = ApiUiV1ExecutionEnvironmentsRemotesApi(cls.client)
         cls.container_registries_api = ApiUiV1ExecutionEnvironmentsRegistriesApi(cls.client)
-        cls.container_remote_sync_api = ApiV3PluginExecutionEnvironmentsRepositoriesContentSyncApi(cls.client)
+        cls.container_remote_sync_api = \
+            ApiV3PluginExecutionEnvironmentsRepositoriesContentSyncApi(cls.client)
         cls.container_registry_sync_api = ApiUiV1ExecutionEnvironmentsRegistriesSyncApi(cls.client)
         cls.container_images_api = ContainerImagesAPI(cls.client)
         cls.get_ansible_cfg_before_test()
@@ -219,7 +220,6 @@ class TestCaseUsingBindings(PulpTestCase):
                 "local_tmp = /tmp/ansible\n"
             )
 
-
     def update_ansible_cfg(self, base_path, auth=True):
         """Update ansible.cfg to use the given base_path."""
         token = f"token={self.get_token()}" if auth else ""
@@ -239,7 +239,7 @@ class TestCaseUsingBindings(PulpTestCase):
     def sync_repo(self, requirements_file, **kwargs):
         """Sync a repository with a given requirements_file"""
         repo_name = kwargs.get("repo_name", "community")
-        url = kwargs.get("url", "https://galaxy.ansible.com/api/")
+        url = kwargs.get("url", "https://beta-galaxy.ansible.com/api/")
 
         self.sync_config_api.update(
             repo_name,

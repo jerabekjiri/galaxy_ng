@@ -3,6 +3,7 @@ from ..utils import get_client, iterate_all
 
 
 @pytest.mark.standalone_only
+@pytest.mark.min_hub_version("4.7dev")
 def test_repository_labels(ansible_config):
     # Get an API client running with admin user credentials
     client = get_client(
@@ -26,5 +27,13 @@ def test_repository_labels(ansible_config):
             resp["name"] for resp in iterate_all(
                 client, url.format(label))
         }
+        # now we have test cases that create multiple repos, we don't want
+        # to take them into account in this test case
+        repos_to_remove = []
+        for repo in repos:
+            if repo.startswith("repo-test-") or repo.startswith("repo_ansible-"):
+                repos_to_remove.append(repo)
+        for repo in repos_to_remove:
+            repos.remove(repo)
 
         assert repos == labels[label]
