@@ -55,15 +55,15 @@ jobs:
           django-admin compilemessages
 
       - name: Set current date as env variable
-        run: echo "MY_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+        run: echo "NOW=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: Automated updated of i18n strings on ${{ env.MY_DATE }}
+          commit-message: Automated updated of i18n strings on ${{ env.NOW }}
           body: |
             No-Issue
-          title: "[i18n] Update translations"
-          branch: i18n-updated-translations-${{ env.MY_DATE }}
+          title: "[i18n] Update translations ${{ env.NOW }}"
+          branch: i18n-update-translations-${{ env.NOW }}
           base: master
