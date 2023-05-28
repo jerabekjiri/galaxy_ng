@@ -65,5 +65,5 @@ jobs:
           body: |
             No-Issue
           title: "[i18n] Update translations"
-          branch: i18n-updated-translations
+          branch: i18n-updated-translations-${{ env.MY_DATE }}
           base: master
