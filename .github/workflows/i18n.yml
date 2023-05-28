@@ -1,5 +1,5 @@
 ---
-name: Update translations
+name: "[i18n] Update translations"
 
 on:
   # allow running manually
@@ -58,13 +58,25 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: Update translations test
-          title: '[i18n] Update translations'
-          body: >
+          commit-message: "Automated updated of i18n strings on $(date +'%Y-%m-%d')"
+          # committer: Peter Evans <peter-evans@users.noreply.github.com>
+          body: |
             No-Issue
-            Update translations
-            Test PR
-          branch: master
+          title: "[i18n] Update translations"
+          branch: i18n-updated-translations
+          base: master
+
+      # - name: Create Pull Request
+      #   uses: peter-evans/create-pull-request@v5
+      #   with:
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+      #     commit-message: Update translations test
+      #     title: '[i18n] Update translations'
+      #     body: >
+      #       No-Issue
+      #       Update translations
+      #       Test PR
+      #     branch: master
 
       # - name: Commit changes
       #   run: |
