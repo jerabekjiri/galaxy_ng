@@ -65,4 +65,4 @@ jobs:
             No-Issue
           title: "[i18n] Update translations ${{ env.NOW }}"
           branch: i18n-update-translations-${{ env.NOW }}
-          base: master
+          base: ${{ matrix.branch }}
