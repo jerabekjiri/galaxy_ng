@@ -63,6 +63,6 @@ jobs:
           commit-message: Automated updated of i18n strings on ${{ env.NOW }}
           body: |
             No-Issue
-          title: "[i18n] Update translations ${{ env.NOW }}"
+          title: "[${{ matrix.branch }}][i18n] Update translations ${{ env.NOW }}"
           branch: i18n-update-translations-${{ env.NOW }}
           base: ${{ matrix.branch }}
