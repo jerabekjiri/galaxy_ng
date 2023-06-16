@@ -66,5 +66,5 @@ jobs:
           body: |
             No-Issue
           title: "[i18n] Update translations ${{ env.NOW }}"
-          branch: i18n/${{ matrix.branch }}/update-translations-${{ env.NOW }}
+          branch: i18n/${{ matrix.branch }}/update-translations-${{ env.NOW }}-123
           base: ${{ matrix.branch }}
