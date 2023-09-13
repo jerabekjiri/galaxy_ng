@@ -19,7 +19,7 @@ jobs:
         - 'stable-4.5'
         - 'stable-4.6'
         - 'stable-4.7'
-        - 'stable-4.8'
+        # - 'stable-4.8'
 
     steps:
       - uses: actions/checkout@v3
