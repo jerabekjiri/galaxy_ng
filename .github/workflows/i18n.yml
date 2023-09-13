@@ -57,7 +57,7 @@ jobs:
         if: steps.verify-changed-files.outputs.files_changed == 'false'
         run: |
           echo "No files updates, skipping."
-          exit 1
+          exit 0
 
       # - name: Clear fuzzy entries
       #   run: bash .github/workflows/scripts/clear_fuzzy_entries.sh
