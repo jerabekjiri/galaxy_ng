@@ -22,7 +22,7 @@ INBOUND_REPO_NAME_FORMAT = "inbound-{namespace_name}"
 PERMISSIONS = {
     "galaxy.add_namespace": {
         # Short name to display in the UI
-        "name": _("Add namespace"),
+        "name": _("Add namespacessssssss"),
         # Description to use when the permission is being assigned to a specifc object
         "object_description": None,
         # Description to use when the permission is being assigned globally
