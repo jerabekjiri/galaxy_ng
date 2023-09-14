@@ -46,12 +46,25 @@ jobs:
           cd galaxy_ng
           django-admin makemessages --all
 
-      - name: Check if translation files were updated
-        uses: tj-actions/verify-changed-files@v16
-        id: verify-changed-files
-        with:
-          files: |
-            galaxy_ng/locale/*/LC_MESSAGES/django.po
+      - name: Check if files were updated
+        run: |
+          filesChanged=$(git diff --ignore-matching-lines=POT-Creation-Date --exit-code)
+          if [ -z "$filesChanged" ]
+          then
+              echo "should not open PR"
+              echo "openPR=false" >> $GITHUB_ENV
+          else
+              echo "should open PR"
+              echo "openPR=true" >> $GITHUB_ENV
+          fi
+        shell: bash
+      
+      # - name: Check if translation files were updated
+      #   uses: tj-actions/verify-changed-files@v16
+      #   id: verify-changed-files
+      #   with:
+      #     files: |
+      #       galaxy_ng/locale/*/LC_MESSAGES/django.po
 
       # - name: Exit if no files were updated
       #   if: steps.verify-changed-files.outputs.files_changed == 'false'
@@ -70,9 +83,13 @@ jobs:
       - name: Set current date as env variable
         run: echo "NOW=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
+      - name: print git env 
+        run: |
+          echo "git env: $GITHUB_ENV"
+
       # create PR only if files changed
       - name: Create Pull Request
-        if: steps.verify-changed-files.outputs.files_changed == 'true'
+        if: env.openPR == 'true'
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
