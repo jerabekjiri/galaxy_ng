@@ -64,7 +64,7 @@ class CollectionRemoteSerializer(pulp_viewsets.CollectionRemoteSerializer):
     updated_at = serializers.DateTimeField(source='pulp_last_updated', required=False)
 
     proxy_password = serializers.CharField(
-        help_text=_("Password for proxy authentication."),
+        help_text=_("Password for proxy authentication. TEST"),
         allow_null=True,
         required=False,
         style={'input_type': 'password'},
