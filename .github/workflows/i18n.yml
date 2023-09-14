@@ -48,7 +48,7 @@ jobs:
 
       - name: Check if files were updated
         run: |
-          filesChanged=$(git diff --ignore-matching-lines=POT-Creation-Date --exit-code)
+          filesChanged=$(git diff --ignore-matching-lines=POT-Creation-Date)
           if [ -z "$filesChanged" ]
           then
               echo "should not open PR"
