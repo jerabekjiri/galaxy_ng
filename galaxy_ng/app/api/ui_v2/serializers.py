@@ -91,8 +91,7 @@ class UserCreateUpdateSerializer(UserDetailSerializer):
             'date_joined': {'read_only': True},
             'password': {
                 'write_only': True,
-                'allow_blank': False,
-                'allow_null': True,
+                'allow_blank': True,
                 'required': False
             },
         }
