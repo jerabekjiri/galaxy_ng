@@ -23,7 +23,7 @@ def ansible_galaxy(
     galaxy_client=None,
     token=None,
     force_token=False,
-    cleanup=True
+    cleanup=False
 ):
 
     # Allow kwargs to override token auth
