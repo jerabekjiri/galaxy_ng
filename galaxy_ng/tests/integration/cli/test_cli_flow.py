@@ -100,7 +100,7 @@ def test_publish_and_install_by_self(galaxy_client, published, cleanup_collectio
 
     ansible_galaxy(
         f"collection install {published.namespace}.{published.name}:{published.version}",
-        galaxy_client=galaxy_client("basic_user"),
+        galaxy_client=galaxy_client("partner_engineer"),
     )
 
 
