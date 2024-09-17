@@ -447,3 +447,5 @@ ALLOW_LOCAL_RESOURCE_MANAGEMENT = True
 
 # https://github.com/ansible/django-ansible-base/pull/611
 RENAMED_USERNAME_PREFIX = "galaxy_"
+
+PULP_TOKEN_AUTH_DISABLED = False
