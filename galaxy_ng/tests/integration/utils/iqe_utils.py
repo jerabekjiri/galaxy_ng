@@ -671,6 +671,32 @@ def get_hub_version(ansible_config):
         password = cfg.get('password')
         gw_root_url = cfg.get("gw_root_url")
 
+        print('hub admin creds')
+        print('username', username)
+        print('password', password)
+        print('gw root url', gw_root_url)
+        print('cfg', cfg)
+
+        print('hub admin creds', flush=True)
+        print('username', username, flush=True)
+        print('password', password, flush=True)
+        print('gw root url', gw_root_url, flush=True)
+
+        logger.debug("hub admin creds")
+        logger.debug(f"username: {username}")
+        logger.debug(f"password: {password}")
+        logger.debug(f"gw root url: {gw_root_url}")
+
+        logger.info("hub admin creds")
+        logger.info(f"username: {username}")
+        logger.info(f"password: {password}")
+        logger.info(f"gw root url: {gw_root_url}")
+
+        logger.error("hub admin creds")
+        logger.error(f"username: {username}")
+        logger.error(f"password: {password}")
+        logger.error(f"gw root url: {gw_root_url}")
+
         gc = GalaxyClient(galaxy_root="foo", auth={"username": username, "password": password},
                           gw_auth=True, https_verify=False, gw_root_url=gw_root_url)
         galaxy_ng_version = gc.get_server_version()
