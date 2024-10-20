@@ -4,7 +4,7 @@ import pytest
 import os
 
 from galaxy_ng.tests.integration.conftest import is_hub_4_7_or_higher
-from galaxy_ng.tests.integration.utils.iqe_utils import sign_collection_on_demand, is_ocp_env, is_upgrade_from_aap24_hub49
+from galaxy_ng.tests.integration.utils.iqe_utils import sign_collection_on_demand, is_ocp_env, aap_gateway
 from galaxy_ng.tests.integration.utils.repo_management_utils import create_repo_and_dist, \
     upload_new_artifact
 from galaxykit.collections import deprecate_collection, \
@@ -14,14 +14,12 @@ from galaxykit.namespaces import add_group
 from galaxykit.registries import create_registry, delete_registry
 from galaxykit.remotes import create_remote, update_remote
 from galaxykit.roles import put_update_role
-# from galaxykit.users import update_user
+from galaxykit.users import update_user
 from galaxykit.utils import GalaxyClientError, wait_for_task
 from galaxykit.client import BasicAuthClient
 
 
 logger = logging.getLogger(__name__)
-
-SKIP_MESSAGE_GW = "Load data test was skipped. Needs gateway enabled."
 
 
 class TestLoadData:
@@ -179,6 +177,39 @@ class TestLoadData:
 
     @pytest.mark.min_hub_version("4.6dev")
     @pytest.mark.load_data
+    def test_load_users_and_groups(self, galaxy_client, settings, data):
+
+        if settings.get('ALLOW_LOCAL_RESOURCE_MANAGEMENT') is False:
+            pytest.skip("this test relies on local resource creation")
+
+        gc = galaxy_client("admin")
+
+        for group in data["groups"]:
+            # creates a group, nothing happens if it already exists
+            logger.debug(f"Creating group {group['name']}")
+            gc.create_group(group["name"])
+
+        for user in data["users"]:
+            # creates a user, nothing happens if it already exists
+            logger.debug(f"Creating user {user['username']}")
+            _user = gc.get_or_create_user(user["username"], user["password"], group=None)
+            update_body = {
+                "id": _user[1]["id"],
+                "username": user["username"],
+                "email": user["email"],
+                "password": user["password"],
+                "is_superuser": user["is_superuser"],
+            }
+            # if it exists, we should update it
+            update_user(gc, update_body)
+            if user["group"]:
+                group = gc.get_group(user["group"])
+                gc.add_user_to_group(user["username"], group["id"])
+
+
+    @pytest.mark.skipif(not aap_gateway(), reason="Load data test was skipped. Only works with gateway enabled.")
+    @pytest.mark.min_hub_version("4.6")
+    @pytest.mark.load_data
     def test_load_gw_users_and_groups(self, galaxy_client, data):
         gc = galaxy_client("admin")
         username = os.environ.get('AAP_GATEWAY_ADMIN_USERNAME')
@@ -217,7 +248,7 @@ class TestLoadData:
             #     gc.add_user_to_group(user["username"], group["id"])
 
 
-    @pytest.mark.min_hub_version("4.6dev")
+    @pytest.mark.min_hub_version("4.6")
     @pytest.mark.load_data
     def test_load_namespaces(self, galaxy_client, data):
         gc = galaxy_client("admin")
@@ -231,7 +262,7 @@ class TestLoadData:
                         object_roles=["galaxy.collection_namespace_owner"])
 
 
-    @pytest.mark.min_hub_version("4.7")
+    @pytest.mark.min_hub_version("4.6")
     @pytest.mark.load_data
     def test_load_repositories_and_remotes(self, galaxy_client, data):
         gc = galaxy_client("admin")
@@ -263,7 +294,7 @@ class TestLoadData:
                     raise e
 
 
-    @pytest.mark.min_hub_version("4.6dev")
+    @pytest.mark.min_hub_version("4.6")
     @pytest.mark.load_data
     def test_load_collections(self, galaxy_client, data, ansible_config):
         gc = galaxy_client("admin")
@@ -301,7 +332,7 @@ class TestLoadData:
                     raise e
 
 
-    @pytest.mark.min_hub_version("4.6dev")
+    @pytest.mark.min_hub_version("4.6")
     @pytest.mark.load_data
     def test_load_roles(self, galaxy_client, data):
         gc = galaxy_client("admin")
@@ -326,7 +357,7 @@ class TestLoadData:
                     raise e
 
 
-    @pytest.mark.min_hub_version("4.9")
+    @pytest.mark.min_hub_version("4.6")
     @pytest.mark.load_data
     def test_load_remote_registries(self, galaxy_client, data):
         gc = galaxy_client("admin")
@@ -345,7 +376,7 @@ class TestLoadData:
                     raise e
 
 
-    @pytest.mark.skipif(not is_upgrade_from_aap24_hub49(), reason=SKIP_MESSAGE_GW)
+    @pytest.mark.min_hub_version("4.6")
     @pytest.mark.load_data
     def test_load_execution_environments(self, galaxy_client, data):
         gc = galaxy_client("admin")
