@@ -239,6 +239,14 @@ class TestLoadData:
                     'name': team['name']
                 })
             )
+            print(created_team, team, flush=True)
+            logger.info(f'created_team: {created_team}')
+            logger.debug(f'created_team: {created_team}')
+
+            logger.info(f'team: {team}')
+            logger.debug(f'team: {team}')
+            print(created_team, team)
+
             created_teams.update({ team['name']: created_team['id'] })
 
         for user in data["users"]:
