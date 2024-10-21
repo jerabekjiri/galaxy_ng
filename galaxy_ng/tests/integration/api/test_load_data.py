@@ -7,10 +7,11 @@ from galaxy_ng.tests.integration.conftest import is_hub_4_7_or_higher
 from galaxy_ng.tests.integration.utils.iqe_utils import sign_collection_on_demand, is_ocp_env, aap_gateway
 from galaxy_ng.tests.integration.utils.repo_management_utils import create_repo_and_dist, \
     upload_new_artifact
+# from galaxy_ng.tests.integration.utils.tools import generate_random_string
 from galaxykit.collections import deprecate_collection, \
     move_or_copy_collection
 from galaxykit.containers import create_container, delete_container
-from galaxykit.namespaces import add_group
+# from galaxykit.namespaces import add_group
 from galaxykit.registries import create_registry, delete_registry
 from galaxykit.remotes import create_remote, update_remote
 from galaxykit.roles import put_update_role
@@ -210,22 +211,39 @@ class TestLoadData:
     @pytest.mark.skipif(not aap_gateway(), reason="Load data test was skipped. Only works with gateway enabled.")
     @pytest.mark.min_hub_version("4.6")
     @pytest.mark.load_data
-    def test_load_gw_users_and_groups(self, galaxy_client, data):
+    def test_load_gw_users_and_teams(self, galaxy_client, data):
         gc = galaxy_client("admin")
         username = os.environ.get('AAP_GATEWAY_ADMIN_USERNAME')
         password = os.environ.get('AAP_GATEWAY_ADMIN_PASSWORD')
         gw_client = BasicAuthClient(gc.galaxy_root, username, password)
 
-        # for group in data["groups"]:
-        #     # creates a group, nothing happens if it already exists
-        #     logger.debug(f"Creating group {group['name']}")
-        #     gw_client.post(group["name"])
+        # org_name = f'hub_org_{generate_random_string()}'
+        # org_data = gw_client.post(
+        #     '/api/gateway/v1/organizations/',
+        #     body=json.dumps({'name': org_name})
+        # )
+        created_teams = {}
+
+        for team in data["teams"]:
+            logger.debug(f"Creating team {team['name']}")
+            # gw_client.post(
+            #     '/api/gateway/v1/teams/',
+            #     body=json.dumps({
+            #         'name': team['name'],
+            #         'organization': org_data['id']
+            #     })
+            # )
+            created_team = gw_client.post(
+                '/api/galaxy/_ui/v2/teams/',
+                body=json.dumps({
+                    'name': team['name']
+                })
+            )
+            created_teams.update({ team['name']: created_team['id'] })
 
         for user in data["users"]:
-            # creates a user, nothing happens if it already exists
             logger.debug(f"Creating user {user['username']}")
-            # _user = gc.get_or_create_user(user["username"], user["password"], group=None)
-            gw_client.post(
+            created_user = gw_client.post(
                 '/api/gateway/v1/users/',
                 body=json.dumps({
                     'username': user['username'],
@@ -233,16 +251,31 @@ class TestLoadData:
                     'group': None
                 })
             )
-            print(gw_client)
-            # update_body = {
-            #     "id": _user[1]["id"],
-            #     "username": user["username"],
-            #     "email": user["email"],
-            #     "password": user["password"],
-            #     "is_superuser": user["is_superuser"],
-            # }
-            # # if it exists, we should update it
-            # update_user(gc, update_body)
+            print('created user', created_user)
+            # if it exists, we should update it
+            updated_user = gw_client.patch(
+                f'/api/gateway/v1/users/{created_user['id']}/',
+                body=json.dumps({
+                    "id": created_user["id"],
+                    "username": user["username"],
+                    "email": user["email"],
+                    "password": user["password"],
+                    "is_superuser": user["is_superuser"],
+                })
+            )
+            print('updated user', updated_user)
+
+        # associate users to their teams
+        for user in data["users"]:
+            team_id = created_teams.get(user['team'])
+            associate_user = gw_client.post(
+                f'/api/gateway/v1/teams/{team_id}/users/associate/',
+                body=json.dumps({
+                    "instances": [user['id']]
+                })
+            )
+            print('associate user', associate_user)
+
             # if user["group"]:
             #     group = gc.get_group(user["group"])
             #     gc.add_user_to_group(user["username"], group["id"])
@@ -258,8 +291,8 @@ class TestLoadData:
             gc.create_namespace(ns["name"], None, None)
             # gc.create_namespace(ns["name"], ns["group"],
             #                     object_roles=["galaxy.collection_namespace_owner"])
-            add_group(gc, ns["name"], ns["group"],
-                        object_roles=["galaxy.collection_namespace_owner"])
+            # add_group(gc, ns["name"], ns["group"],
+            #             object_roles=["galaxy.collection_namespace_owner"])
 
 
     @pytest.mark.min_hub_version("4.6")
