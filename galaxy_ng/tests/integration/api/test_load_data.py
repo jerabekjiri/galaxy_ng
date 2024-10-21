@@ -254,7 +254,7 @@ class TestLoadData:
             print('created user', created_user)
             # if it exists, we should update it
             updated_user = gw_client.patch(
-                f'/api/gateway/v1/users/{created_user['id']}/',
+                f'/api/gateway/v1/users/{created_user["id"]}/',
                 body=json.dumps({
                     "id": created_user["id"],
                     "username": user["username"],
