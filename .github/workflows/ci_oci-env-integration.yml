@@ -42,11 +42,24 @@ jobs:
 
       - name: spin up dev/compose/aap.yaml
         run: |
-          docker compose -f dev/compose/aap.yaml up
+          docker compose -f dev/compose/aap.yaml up --detach
 
       - name: enter the container
         run: |
           docker compose -f dev/compose/aap.yaml exec manager /bin/bash
+
+      - name: healthcheck
+        run: |
+          while true; do
+            echo "checking api status..."
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u admin:admin -LI http://localhost:5001/api/galaxy/pulp/api/v3/status/)
+            if [ "$RESPONSE" -ne 200 ]; then
+              echo "API endpoint is down. Status code: $RESPONSE. Retrying..."
+              sleep 10
+            else
+              exit 0
+            fi
+          done
 
       - name: install requirements
         run: |
