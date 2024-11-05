@@ -44,6 +44,21 @@ jobs:
         run: |
           docker compose -f dev/compose/aap.yaml up
 
+      - name: enter the container
+        run: |
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash
+
+      - name: install requirements
+        run: |
+           pip install -r integration_requirements.txt
+
+      - name: run tests
+        run: |
+           pytest \
+            --capture=no \
+            -m "not cloud_only and not community_only and not rbac_roles and not iqe_rbac_test and not sync and not certified_sync and not x_repo_search and not rm_sync and not rbac_repos" \
+            galaxy_ng/tests/integration
+
 
       # Note: COMPOSE_INTERACTIVE_NO_CLI=1 is required for oci-env to work correctly when there's no interactive terminal
 #      - name: Set environment variables
