@@ -44,10 +44,6 @@ jobs:
         run: |
           docker compose -f dev/compose/aap.yaml up --detach
 
-      - name: enter the container
-        run: |
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash
-
       - name: healthcheck
         run: |
           while true; do
@@ -57,9 +53,31 @@ jobs:
               echo "API endpoint is down. Status code: $RESPONSE. Retrying..."
               sleep 10
             else
+              echo "API online."
               exit 0
             fi
           done
+
+      - name: enter the container
+        run: |
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash
+
+      - name: export vars
+        run: |
+          export 
+          
+
+      - name: ls -la
+        run: |
+          ls -la
+
+      - name: printenv
+        run: |
+          printenv
+
+      - name: cat integration_requirements.txt
+        run: |
+          cat integration_requirements.txt
 
       - name: install requirements
         run: |
@@ -69,7 +87,7 @@ jobs:
         run: |
            pytest \
             --capture=no \
-            -m "not cloud_only and not community_only and not rbac_roles and not iqe_rbac_test and not sync and not certified_sync and not x_repo_search and not rm_sync and not rbac_repos" \
+            -k "test_directly_to_repo"
             galaxy_ng/tests/integration
 
 

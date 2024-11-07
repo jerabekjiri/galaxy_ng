@@ -79,6 +79,8 @@ x-common-env: &common-env
   # $ DEV_SOURCE_PATH="pulp_container:galaxy_ng" docker compose -f dev/compose/aap.yaml up
   DEV_SOURCE_PATH:
 
+  HUB_API_ROOT: http://api:24817/api/galaxy/
+
 
 services:
   base_img:
