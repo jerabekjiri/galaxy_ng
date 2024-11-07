@@ -58,37 +58,14 @@ jobs:
             fi
           done
 
-      - name: enter the container
-        run: |
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash
-
-      - name: export vars
-        run: |
-          export 
-          
-
-      - name: ls -la
-        run: |
-          ls -la
-
-      - name: printenv
-        run: |
-          printenv
-
-      - name: cat integration_requirements.txt
-        run: |
-          cat integration_requirements.txt
-
       - name: install requirements
         run: |
-           pip install -r integration_requirements.txt
+           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
 
       - name: run tests
         run: |
-           pytest \
-            --capture=no \
-            -k "test_directly_to_repo"
-            galaxy_ng/tests/integration
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pytest --capture=no -k 'test_directly_to_repo' galaxy_ng/tests/integration"
+
 
 
       # Note: COMPOSE_INTERACTIVE_NO_CLI=1 is required for oci-env to work correctly when there's no interactive terminal
