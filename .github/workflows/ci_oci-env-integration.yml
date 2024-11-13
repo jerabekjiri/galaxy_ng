@@ -62,10 +62,15 @@ jobs:
 
       - name: healthcheck
         run: |
+          max_runs=30
+          run=0
           while true; do
-            echo "checking api status..."
+            echo "$run: checking api status..."
             RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ env.DJANGO_SUPERUSER_USERNAME }}:${{ env.DJANGO_SUPERUSER_PASSWORD }}" -LI http://localhost:5001/api/galaxy/pulp/api/v3/status/)
             if [ "$RESPONSE" -ne 200 ]; then
+              if [ "$max_runs" -eq "$run" ]
+                exit 1
+
               echo "API endpoint is down. Status code: $RESPONSE. Retrying..."
               sleep 10
             else
