@@ -53,8 +53,11 @@ jobs:
           echo "DJANGO_SUPERUSER_USERNAME=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_USERNAME')" >> $GITHUB_ENV
           echo "DJANGO_SUPERUSER_PASSWORD=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_PASSWORD')" >> $GITHUB_ENV
           echo "GALAXY_TEST_MARKS=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $GALAXY_TEST_MARKS')" >> $GITHUB_ENV
+        
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'printenv')"
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'env')"
 
-      - name: printenv
+      - name: print them
         run: |
           echo "${{ env.DJANGO_SUPERUSER_USERNAME }}"
           echo "${{ env.DJANGO_SUPERUSER_PASSWORD }}"
@@ -62,16 +65,12 @@ jobs:
 
       - name: healthcheck
         run: |
-          max_runs=30
-          run=0
-          while true; do
-            echo "$run: checking api status..."
+          max_runs=10
+          for i in $(seq 1 $max_runs); do
+            echo "$i: checking api status..."
             RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ env.DJANGO_SUPERUSER_USERNAME }}:${{ env.DJANGO_SUPERUSER_PASSWORD }}" -LI http://localhost:5001/api/galaxy/pulp/api/v3/status/)
             if [ "$RESPONSE" -ne 200 ]; then
-              if [ "$max_runs" -eq "$run" ]
-                exit 1
-
-              echo "API endpoint is down. Status code: $RESPONSE. Retrying..."
+              echo "API endpoint is down. Retrying in 10 seconds..."
               sleep 10
             else
               echo "API online."
@@ -79,22 +78,13 @@ jobs:
             fi
           done
 
-      - name: get env vars
+      - name: install requirements
         run: |
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "printenv"
-          
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "env"
-          
-          
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "echo $HUB_TEST_MARKS"
+           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
 
-#      - name: install requirements
-#        run: |
-#           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
-
-#      - name: run tests
-#        run: |
-#          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pytest -m '' galaxy_ng/tests/integration"
+      - name: run tests
+        run: |
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pytest -m '${{ env.GALAXY_TEST_MARKS }}' galaxy_ng/tests/integration"
 
 
 

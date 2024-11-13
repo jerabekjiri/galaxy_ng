@@ -81,7 +81,9 @@ x-common-env: &common-env
 
   HUB_API_ROOT: http://api:24817/api/galaxy/
 
-  GALAXY_TEST_MARKS: (deploy or galaxy)
+  GALAXY_TEST_MARKS: deployment_standalone and not skip_in_gw
+
+  HUB_TEST_MARKS: 'deployment_standalone and not skip_in_gw'
 
 
 services:
