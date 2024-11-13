@@ -54,8 +54,8 @@ jobs:
           echo "DJANGO_SUPERUSER_PASSWORD=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_PASSWORD')" >> $GITHUB_ENV
           echo "GALAXY_TEST_MARKS=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $GALAXY_TEST_MARKS')" >> $GITHUB_ENV
         
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'printenv')"
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'env')"
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'printenv'
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'env'
 
       - name: print them
         run: |
