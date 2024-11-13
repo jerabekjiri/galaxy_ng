@@ -48,11 +48,23 @@ jobs:
         run: |
           docker compose -f dev/compose/aap.yaml up --detach
 
+      - name: set env variables
+        run: |
+          echo "DJANGO_SUPERUSER_USERNAME=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_USERNAME')" >> $GITHUB_ENV
+          echo "DJANGO_SUPERUSER_PASSWORD=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_PASSWORD')" >> $GITHUB_ENV
+          echo "GALAXY_TEST_MARKS=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $GALAXY_TEST_MARKS')" >> $GITHUB_ENV
+
+      - name: printenv
+        run: |
+          echo "${{ env.DJANGO_SUPERUSER_USERNAME }}"
+          echo "${{ env.DJANGO_SUPERUSER_PASSWORD }}"
+          echo "${{ env.GALAXY_TEST_MARKS }}"
+
       - name: healthcheck
         run: |
           while true; do
             echo "checking api status..."
-            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u admin:admin -LI http://localhost:5001/api/galaxy/pulp/api/v3/status/)
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ env.DJANGO_SUPERUSER_USERNAME }}:${{ env.DJANGO_SUPERUSER_PASSWORD }}" -LI http://localhost:5001/api/galaxy/pulp/api/v3/status/)
             if [ "$RESPONSE" -ne 200 ]; then
               echo "API endpoint is down. Status code: $RESPONSE. Retrying..."
               sleep 10
@@ -71,33 +83,9 @@ jobs:
           
           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "echo $HUB_TEST_MARKS"
 
-      - run: |
-          printenv
-
-      - run: |
-          env
-
-      - name: Import environment variables
-        id: import-env
-        shell: bash
-        run: |
-          while read line; do
-            echo "$line" >> $GITHUB_ENV
-          done < ${{ env.ENV_FILE }}
-
-      - run: |
-          echo "$ALLMYVARS"
-        shell: bash
-        env:
-          ALLMYVARS: ${{ toJSON(vars) }}
-
 #      - name: install requirements
 #        run: |
 #           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
-
-      - name: load correct marker
-        run: |
-          echo "${{ env.HUB_TEST_MARKS }}"
 
 #      - name: run tests
 #        run: |
