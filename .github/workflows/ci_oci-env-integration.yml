@@ -82,7 +82,7 @@ jobs:
       - name: parse correct profile
         run: |
           compose_file="${{ matrix.env.TEST_PROFILE }}"
-          if [ "$compose_file"== "standalone" ]; then
+          if [[ "$compose_file" == "standalone" ]]; then
             $compose_file="aap"
           fi
           echo "COMPOSE_FILE=$compose_file" >> $GITHUB_ENV
