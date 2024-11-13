@@ -15,22 +15,25 @@ on:
 
 jobs:
   integration:
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        env:
-##          - TEST_PROFILE: ldap
-##          - TEST_PROFILE: keycloak
-#          - TEST_PROFILE: standalone
-##          # - TEST_PROFILE: rbac
-##          - TEST_PROFILE: rbac_parallel_group_1
-##          - TEST_PROFILE: rbac_parallel_group_2
-##          - TEST_PROFILE: certified-sync
-##          - TEST_PROFILE: insights
-##          - TEST_PROFILE: iqe_rbac
-##          - TEST_PROFILE: x_repo_search
-##          - TEST_PROFILE: community
-##          - TEST_PROFILE: dab_jwt
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - TEST_PROFILE: standalone
+          - TEST_PROFILE: insights
+          - TEST_PROFILE: community
+#          - TEST_PROFILE: ldap
+#          - TEST_PROFILE: keycloak
+
+#          # - TEST_PROFILE: rbac
+#          - TEST_PROFILE: rbac_parallel_group_1
+#          - TEST_PROFILE: rbac_parallel_group_2
+#          - TEST_PROFILE: certified-sync
+
+#          - TEST_PROFILE: iqe_rbac
+#          - TEST_PROFILE: x_repo_search
+#          -
+#          - TEST_PROFILE: dab_jwt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,16 +55,10 @@ jobs:
         run: |
           echo "DJANGO_SUPERUSER_USERNAME=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_USERNAME')" >> $GITHUB_ENV
           echo "DJANGO_SUPERUSER_PASSWORD=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_PASSWORD')" >> $GITHUB_ENV
-          echo "GALAXY_TEST_MARKS=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $GALAXY_TEST_MARKS')" >> $GITHUB_ENV
+          echo "HUB_TEST_MARKS=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $HUB_TEST_MARKS')" >> $GITHUB_ENV
         
           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'printenv'
           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'env'
-
-      - name: print them
-        run: |
-          echo "${{ env.DJANGO_SUPERUSER_USERNAME }}"
-          echo "${{ env.DJANGO_SUPERUSER_PASSWORD }}"
-          echo "${{ env.GALAXY_TEST_MARKS }}"
 
       - name: healthcheck
         run: |
@@ -82,9 +79,17 @@ jobs:
         run: |
            docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
 
+      - name: parse correct profile
+        run: |
+          compose_file="${{ matrix.env.TEST_PROFILE }}"
+          if [ "$compose_file"== "standalone" ]; then
+            $compose_file="aap"
+          fi
+          echo "COMPOSE_FILE=$compose_file" >> $GITHUB_ENV
+
       - name: run tests
         run: |
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pytest -m '${{ env.GALAXY_TEST_MARKS }}' galaxy_ng/tests/integration"
+          docker compose -f dev/compose/${{ env.COMPOSE_FILE }}.yaml exec manager /bin/bash -c "pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration"
 
 
 
