@@ -85,7 +85,7 @@ jobs:
 
       - name: run tests
         run: |
-          docker compose -f dev/compose/${{ env.COMPOSE_FILE }}.yaml exec manager /bin/bash -c "pytest -v -r sx --color=yes -m "${{ env.HUB_TEST_MARKS }}" galaxy_ng/tests/integration"
+          docker compose -f dev/compose/${{ env.COMPOSE_FILE }}.yaml exec manager /bin/bash -c "pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration"
 
 
 
