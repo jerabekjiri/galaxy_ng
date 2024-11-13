@@ -8,6 +8,10 @@ on:
     branches:
       - '**'
   workflow_dispatch:
+    inputs:
+      environment:
+        type: environment
+        description: Select the environment
 
 jobs:
   integration:
@@ -58,21 +62,30 @@ jobs:
             fi
           done
 
+
+      - run: |
+          printenv
+
+      - run: |
+          env
+
+      - name: Import environment variables
+        id: import-env
+        shell: bash
+        run: |
+          while read line; do
+            echo "$line" >> $GITHUB_ENV
+          done < ${{ env.ENV_FILE }}
+
+      - run: |
+          echo "$ALLMYVARS"
+        shell: bash
+        env:
+          ALLMYVARS: ${{ toJSON(vars) }}
+
 #      - name: install requirements
 #        run: |
 #           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
-
-      - name: print env
-        run: |
-          echo "${{ env }}"
-
-      - name: print inputs environment
-        run: |
-          echo "${{ inputs.environment }}"
-
-      - name: print GITHUB_ENV
-        run: |
-          echo "$GITHUB_ENV"
 
       - name: load correct marker
         run: |
