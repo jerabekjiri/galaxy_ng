@@ -58,13 +58,29 @@ jobs:
             fi
           done
 
-      - name: install requirements
-        run: |
-           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
+#      - name: install requirements
+#        run: |
+#           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
 
-      - name: run tests
+      - name: print env
         run: |
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pytest --capture=no -k 'test_directly_to_repo' galaxy_ng/tests/integration"
+          echo "${{ env }}"
+
+      - name: print inputs environment
+        run: |
+          echo "${{ inputs.environment }}"
+
+      - name: print GITHUB_ENV
+        run: |
+          echo "$GITHUB_ENV"
+
+      - name: load correct marker
+        run: |
+          echo "${{ env.HUB_TEST_MARKS }}"
+
+#      - name: run tests
+#        run: |
+#          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pytest -m '' galaxy_ng/tests/integration"
 
 
 
