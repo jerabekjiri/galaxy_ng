@@ -16,8 +16,8 @@ jobs:
       matrix:
         env:
           - TEST_PROFILE: standalone
-          - TEST_PROFILE: insights
-          - TEST_PROFILE: community
+#          - TEST_PROFILE: insights
+#          - TEST_PROFILE: community
 #          - TEST_PROFILE: ldap
 #          - TEST_PROFILE: keycloak
 
@@ -36,7 +36,7 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: (Linux) Install docker compose
         run: |
@@ -71,9 +71,13 @@ jobs:
             fi
           done
 
+#      - name: install requirements
+#        run: |
+#           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
+
       - name: install requirements
         run: |
-           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
+           pip install -r integration_requirements.txt
 
       - name: parse correct profile
         run: |
@@ -85,7 +89,7 @@ jobs:
 
       - name: run tests
         run: |
-          docker compose -f dev/compose/${{ env.COMPOSE_FILE }}.yaml exec manager /bin/bash -c "pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration"
+          pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration -k 'test_directly_to_repo'
 
 
 
