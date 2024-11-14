@@ -93,6 +93,12 @@ jobs:
       - name: tree
         run: tree
 
+      - name: mkdir create file
+        run: mkdir test_dir
+
+      - name: touch file
+        run: touch ./test_dir/test_file
+
 #      - name: install requirements
 #        run: |
 #           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
