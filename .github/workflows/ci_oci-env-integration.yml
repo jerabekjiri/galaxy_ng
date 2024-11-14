@@ -81,6 +81,18 @@ jobs:
             fi
           done
 
+      - name: whoami
+        run: whoami
+
+      - name: cat /etc/group
+        run: cat /etc/group
+
+      - name: ls
+        run: ls -la
+
+      - name: tree
+        run: tree
+
 #      - name: install requirements
 #        run: |
 #           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
@@ -100,7 +112,6 @@ jobs:
       - name: run tests
         run: |
           pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration -k 'test_directly_to_repo'
-
 
 
       # Note: COMPOSE_INTERACTIVE_NO_CLI=1 is required for oci-env to work correctly when there's no interactive terminal
