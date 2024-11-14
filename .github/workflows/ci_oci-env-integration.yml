@@ -81,23 +81,23 @@ jobs:
             fi
           done
 
-      - name: whoami
-        run: whoami
+#      - name: whoami
+#        run: whoami
 
-      - name: cat /etc/group
-        run: cat /etc/group
+#      - name: cat /etc/group
+#        run: cat /etc/group
 
-      - name: mkdir create file
-        run: mkdir test_dir
+#      - name: mkdir create file
+#        run: mkdir test_dir
+#
+#      - name: touch file
+#        run: touch ./test_dir/test_file
 
-      - name: touch file
-        run: touch ./test_dir/test_file
+      - run: ls -la
 
-      - name: ls
-        run: ls -la
+      - run: tree
 
-      - name: tree
-        run: tree
+      - run: pwd
 
       - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir test_dir2'
 
@@ -107,6 +107,13 @@ jobs:
 
       - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la test_dir2'
 
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'pwd'
+
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'whoami'
+
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'python -c "import os; os.makedirs(\"test_dir\")"'
+
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la'
 #      - name: install requirements
 #        run: |
 #           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
