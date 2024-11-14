@@ -43,7 +43,7 @@ jobs:
           curl -L -o /tmp/docker-compose https://github.com/docker/compose/releases/download/v2.29.1/docker-compose-linux-x86_64
           install /tmp/docker-compose /usr/local/bin/
 
-      - name: spin up dev/compose/aap.yaml
+      - name: Spin up dev/compose/aap.yaml
         run: |
           docker compose -f dev/compose/aap.yaml up --detach
 
@@ -54,7 +54,17 @@ jobs:
           echo "HUB_TEST_MARKS=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $HUB_TEST_MARKS')" >> $GITHUB_ENV
         
           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'printenv'
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'env'
+
+      - name: create env vars
+        run: |
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'env' > .env
+          cat .env
+          cat .env >> $GITHUB_ENV
+          cat $GITHUB_ENV
+
+      - name: printenv
+        run: |
+          printenv
 
       - name: healthcheck
         run: |
