@@ -93,11 +93,11 @@ jobs:
 #      - name: touch file
 #        run: touch ./test_dir/test_file
 
-      - run: ls -la
-
-      - run: tree
-
-      - run: pwd
+#      - run: ls -la
+#
+#      - run: tree
+#
+#      - run: pwd
 
 #      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir test_dir2'
 #
@@ -119,9 +119,14 @@ jobs:
 #           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
 
       # hack to get around bug where some tests fail when ~/.ansible is missing.
-      - run: sudo mkdir /root/.ansible
+
+      - run: sudo ls -la /root/
 
       - run: ls -la /root/
+
+#      - run: sudo mkdir /root/.ansible
+#
+#      - run: ls -la /root/
 
       - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
 
