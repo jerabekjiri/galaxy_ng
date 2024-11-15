@@ -149,7 +149,7 @@ jobs:
 
       - name: run tests
         run: |
-          pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration -k 'test_directly_to_repo'
+          sudo pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration -k 'test_directly_to_repo'
 
 
       # Note: COMPOSE_INTERACTIVE_NO_CLI=1 is required for oci-env to work correctly when there's no interactive terminal
