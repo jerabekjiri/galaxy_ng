@@ -124,6 +124,7 @@ jobs:
 
       - run: sudo ls -la /root/.ansible/
 
+      - run: sudo ls -la ~/
 
 # - run: sudo mkdir /root/.ansible
 #
@@ -133,9 +134,13 @@ jobs:
 
       - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /root/.ansible/galaxy_token'
 
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'tree /root/'
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
 
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'tree /home/'
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /home/'
+
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /home/.ansible'
+
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /home/.ansible'
 
       - name: install requirements
         run: |
