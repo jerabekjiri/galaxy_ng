@@ -129,11 +129,13 @@ jobs:
 #
 #      - run: ls -la /root/
 
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
 
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir /root/.ansible/'
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /root/.ansible/galaxy_token'
 
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'sudo tree /root/'
+
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'sudo tree /home/'
 
       - name: install requirements
         run: |
@@ -149,7 +151,7 @@ jobs:
 
       - name: run tests
         run: |
-          sudo pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration -k 'test_directly_to_repo'
+          pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration -k 'test_directly_to_repo'
 
 
       # Note: COMPOSE_INTERACTIVE_NO_CLI=1 is required for oci-env to work correctly when there's no interactive terminal
