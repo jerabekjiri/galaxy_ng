@@ -160,7 +160,7 @@ jobs:
 
       - name: run tests
         run: |
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'pytest -v -r sx --color=yes -k "test_directly_to_repo" galaxy_ng/tests/integration'
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'pytest -v -r sx --color=yes -k "test_gw_can_update_container_push" galaxy_ng/tests/integration'
 
 
       # Note: COMPOSE_INTERACTIVE_NO_CLI=1 is required for oci-env to work correctly when there's no interactive terminal
