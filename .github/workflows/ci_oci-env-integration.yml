@@ -155,10 +155,12 @@ jobs:
           echo "COMPOSE_FILE=$compose_file" >> $GITHUB_ENV
 
       - name: podman install
+        run: |
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'dnf -y install podman'
 
       - name: run tests
         run: |
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'pytest -v -r sx --color=yes -m "${{ env.HUB_TEST_MARKS }}" galaxy_ng/tests/integration -k "test_directly_to_repo"'
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'pytest -v -r sx --color=yes -m galaxy_ng/tests/integration -k "test_directly_to_repo"'
 
 
       # Note: COMPOSE_INTERACTIVE_NO_CLI=1 is required for oci-env to work correctly when there's no interactive terminal
