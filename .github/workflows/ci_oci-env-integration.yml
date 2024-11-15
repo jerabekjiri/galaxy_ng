@@ -119,7 +119,7 @@ jobs:
 #           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
 
       # hack to get around bug where some tests fail when ~/.ansible is missing.
-      - run: mkdir /root/.ansible
+      - run: sudo mkdir /root/.ansible
 
       - run: ls -la /root/
 
