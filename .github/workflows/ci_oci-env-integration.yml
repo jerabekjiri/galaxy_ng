@@ -133,9 +133,9 @@ jobs:
 
       - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /root/.ansible/galaxy_token'
 
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'sudo tree /root/'
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'tree /root/'
 
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'sudo tree /home/'
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'tree /home/'
 
       - name: install requirements
         run: |
