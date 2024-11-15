@@ -131,6 +131,10 @@ jobs:
 
       - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
 
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir /root/.ansible/'
+
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
+
       - name: install requirements
         run: |
            pip install -r integration_requirements.txt
