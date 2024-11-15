@@ -122,9 +122,10 @@ jobs:
 
       - run: sudo ls -la /root/
 
-      - run: ls -la /root/
+      - run: sudo ls -la /root/.ansible/
 
-#      - run: sudo mkdir /root/.ansible
+
+# - run: sudo mkdir /root/.ansible
 #
 #      - run: ls -la /root/
 
