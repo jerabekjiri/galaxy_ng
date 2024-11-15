@@ -99,24 +99,31 @@ jobs:
 
       - run: pwd
 
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir test_dir2'
-
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'touch test_dir2/test_file2'
-
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la'
-
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la test_dir2'
-
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'pwd'
-
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'whoami'
-
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'python -c "import os; os.makedirs(\"test_dir\")"'
-
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la'
-#      - name: install requirements
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir test_dir2'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'touch test_dir2/test_file2'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la test_dir2'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'pwd'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'whoami'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'python -c "import os; os.makedirs(\"test_dir\")"'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la'
+##      - name: install requirements
 #        run: |
 #           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
+
+      # hack to get around bug where some tests fail when ~/.ansible is missing.
+      - run: mkdir /root/.ansible
+
+      - run: ls -la /root/
+
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
 
       - name: install requirements
         run: |
