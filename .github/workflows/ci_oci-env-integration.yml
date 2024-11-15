@@ -55,16 +55,16 @@ jobs:
         
           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'printenv'
 
-      - name: create env vars
-        run: |
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'env' > .env
-          cat .env
-          cat .env >> $GITHUB_ENV
-          cat $GITHUB_ENV
+#      - name: create env vars
+#        run: |
+#          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'env' > .env
+#          cat .env
+#          cat .env >> $GITHUB_ENV
+#          cat $GITHUB_ENV
 
-      - name: printenv
-        run: |
-          printenv
+#      - name: printenv
+#        run: |
+#          printenv
 
       - name: healthcheck
         run: |
@@ -120,11 +120,11 @@ jobs:
 
       # hack to get around bug where some tests fail when ~/.ansible is missing.
 
-      - run: sudo ls -la /root/
-
-      - run: sudo ls -la /root/.ansible/
-
-      - run: sudo ls -la ~/
+#      - run: sudo ls -la /root/
+#
+#      - run: sudo ls -la /root/.ansible/
+#
+#      - run: sudo ls -la ~/
 
 # - run: sudo mkdir /root/.ansible
 #
@@ -132,19 +132,19 @@ jobs:
 
 #      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
 
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /root/.ansible/galaxy_token'
-
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
-
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /home/'
-
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /home/.ansible'
-
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /home/.ansible'
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /root/.ansible/galaxy_token'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /home/'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /home/.ansible'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /home/.ansible'
 
       - name: install requirements
         run: |
-           pip install -r integration_requirements.txt
+           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'pip install -r integration_requirements.txt'
 
       - name: parse correct profile
         run: |
@@ -154,9 +154,11 @@ jobs:
           fi
           echo "COMPOSE_FILE=$compose_file" >> $GITHUB_ENV
 
+      - name: podman install
+
       - name: run tests
         run: |
-          pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration -k 'test_directly_to_repo'
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'pytest -v -r sx --color=yes -m "${{ env.HUB_TEST_MARKS }}" galaxy_ng/tests/integration -k "test_directly_to_repo"'
 
 
       # Note: COMPOSE_INTERACTIVE_NO_CLI=1 is required for oci-env to work correctly when there's no interactive terminal
