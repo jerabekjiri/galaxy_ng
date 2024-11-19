@@ -15,9 +15,9 @@ jobs:
       fail-fast: false
       matrix:
         env:
-          - TEST_PROFILE: standalone
+#          - TEST_PROFILE: standalone
 #          - TEST_PROFILE: insights
-#          - TEST_PROFILE: community
+          - TEST_PROFILE: community
 #          - TEST_PROFILE: ldap
 #          - TEST_PROFILE: keycloak
 
@@ -43,17 +43,17 @@ jobs:
           curl -L -o /tmp/docker-compose https://github.com/docker/compose/releases/download/v2.29.1/docker-compose-linux-x86_64
           install /tmp/docker-compose /usr/local/bin/
 
-      - name: Spin up dev/compose/aap.yaml
+      - name: Spin up dev/compose/community.yaml
         run: |
-          docker compose -f dev/compose/aap.yaml up --detach
+          docker compose -f dev/compose/community.yaml up --detach
 
       - name: set env variables
         run: |
-          echo "DJANGO_SUPERUSER_USERNAME=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_USERNAME')" >> $GITHUB_ENV
-          echo "DJANGO_SUPERUSER_PASSWORD=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_PASSWORD')" >> $GITHUB_ENV
-          echo "HUB_TEST_MARKS=$(docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'echo $HUB_TEST_MARKS')" >> $GITHUB_ENV
+          echo "DJANGO_SUPERUSER_USERNAME=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_USERNAME')" >> $GITHUB_ENV
+          echo "DJANGO_SUPERUSER_PASSWORD=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_PASSWORD')" >> $GITHUB_ENV
+          echo "HUB_TEST_MARKS=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $HUB_TEST_MARKS')" >> $GITHUB_ENV
         
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'printenv'
+          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'printenv'
 
 #      - name: create env vars
 #        run: |
@@ -144,7 +144,7 @@ jobs:
 
       - name: install requirements
         run: |
-           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'pip install -r integration_requirements.txt'
+           docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'pip install -r integration_requirements.txt'
 
       - name: parse correct profile
         run: |
@@ -154,13 +154,13 @@ jobs:
           fi
           echo "COMPOSE_FILE=$compose_file" >> $GITHUB_ENV
 
-      - name: podman install
-        run: |
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'dnf -y install podman'
+#      - name: podman install
+#        run: |
+#          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'dnf -y install podman'
 
       - name: run tests
         run: |
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'pytest -v -r sx --color=yes -k "test_gw_can_update_container_push" galaxy_ng/tests/integration'
+          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'pytest -v -r sx --color=yes -k "test_legacy_namespace_add_list_remove_aiindex" galaxy_ng/tests/integration'
 
 
       # Note: COMPOSE_INTERACTIVE_NO_CLI=1 is required for oci-env to work correctly when there's no interactive terminal
