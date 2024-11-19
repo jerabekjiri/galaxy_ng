@@ -76,6 +76,8 @@ x-common-env: &common-env
   # Integration test settings
   HUB_TEST_AUTHENTICATION_BACKEND: "community"
   HUB_TEST_MARKS: "deployment_community"
+  HUB_API_ROOT: 'http://localhost:5001/api/'
+
 
   # Unpin dependencies on setup.py if set to 0
   LOCK_REQUIREMENTS: 0
