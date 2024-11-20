@@ -208,11 +208,16 @@ def get_standalone_token(
 ):
     cache_key = f"{server}::{user['username']}"
 
+    print('-------------------------------------------------------------------')
+    print(f'getting the standalone token')
+
     if cache_key not in token_cache or ignore_cache:
         username = user["username"]
         password = user.get("password")
         token_value = user.get("token")
         auth_url = user.get("auth_url")
+
+        print(f'{token_value=}')
 
         if token_value:
             if auth_url:
@@ -443,12 +448,12 @@ class AnsibleConfigFixture(dict):
 
         # workaround for a weird error with the galaxy cli lib ...
         # galaxy_token_fn = os.path.expanduser('~/.ansible/galaxy_token')
-        galaxy_token_fn = os.path.expanduser(os.getenv('GALAXY_TOKEN_PATH', '~/.ansible/galaxy_token'))
-        if not os.path.exists(os.path.dirname(galaxy_token_fn)):
-            os.makedirs(os.path.dirname(galaxy_token_fn))
-        if not os.path.exists(galaxy_token_fn):
-            with open(galaxy_token_fn, 'w') as f:
-                f.write('')
+        # galaxy_token_fn = os.path.expanduser(os.getenv('GALAXY_TOKEN_PATH', '~/.ansible/galaxy_token'))
+        # if not os.path.exists(os.path.dirname(galaxy_token_fn)):
+        #     os.makedirs(os.path.dirname(galaxy_token_fn))
+        # if not os.path.exists(galaxy_token_fn):
+        #     with open(galaxy_token_fn, 'w') as f:
+        #         f.write('')
 
     def __hash__(self):
         # To avoid TypeError: unhashable type: 'AnsibleConfigFixture'
