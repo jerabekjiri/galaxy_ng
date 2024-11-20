@@ -224,8 +224,8 @@ def get_standalone_token(
                 token = KeycloakToken(token_value, auth_url=auth_url)
                 token_cache[cache_key] = token.get()
             else:
-                # token = GalaxyToken(token_value)
-                token_cache[cache_key] = token_value
+                token = GalaxyToken(token_value)
+                token_cache[cache_key] = token.config["token"]
         else:
             token = BasicAuthToken(username, password)
             if basic_token:
