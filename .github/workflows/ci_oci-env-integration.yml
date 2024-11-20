@@ -58,7 +58,7 @@ jobs:
 
       - name: create env vars
         run: |
-          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'env' > .env
+          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'env | grep -v -w "HOME"' > .env
           cat .env
           cat .env >> $GITHUB_ENV
           cat $GITHUB_ENV
