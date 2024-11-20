@@ -47,6 +47,8 @@ jobs:
         run: |
           docker compose -f dev/compose/community.yaml up --detach
 
+      - run: sudo chmod u+w /app
+
       - name: set env variables
         run: |
           echo "DJANGO_SUPERUSER_USERNAME=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_USERNAME')" >> $GITHUB_ENV
