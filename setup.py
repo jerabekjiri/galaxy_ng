@@ -87,11 +87,11 @@ class BuildPyCommand(_BuildPyCommand):
         return super().run()
 
 
-django_ansible_base_branch = os.getenv('DJANGO_ANSIBLE_BASE_BRANCH', '2024.10.17')
-django_ansible_base_dependency = (
-    'django-ansible-base[jwt_consumer] @ '
-    f'git+https://github.com/ansible/django-ansible-base@{django_ansible_base_branch}'
-)
+# django_ansible_base_branch = os.getenv('DJANGO_ANSIBLE_BASE_BRANCH', '2024.10.17')
+# django_ansible_base_dependency = (
+#     'django-ansible-base[jwt_consumer] @ '
+#     f'git+https://github.com/ansible/django-ansible-base@{django_ansible_base_branch}'
+# )
 
 requirements = [
     "galaxy-importer>=0.4.26,<0.5.0",
@@ -107,7 +107,7 @@ requirements = [
     "insights_analytics_collector>=0.3.0",
     "boto3",
     "distro",
-    django_ansible_base_dependency,  # noqa 501
+    # django_ansible_base_dependency,  # noqa 501
     "django-crum==0.7.9",
     # From vendored automated_logging
     "marshmallow<4.0.0,>=3.6.1",
