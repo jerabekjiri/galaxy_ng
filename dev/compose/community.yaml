@@ -87,8 +87,7 @@ x-common-env: &common-env
   # "dynaconf:pulpcore:galaxy_importer:pulp_ansible:pulp_container:galaxy_ng:django-ansible-base"
   # This can be done as part of the `docker compose` call:
   # $ DEV_SOURCE_PATH="pulp_container:galaxy_ng" docker compose -f dev/compose/aap.yaml up
-  DEV_SOURCE_PATH: "galaxy_ng"
-
+  DEV_SOURCE_PATH:
 
 services:
   base_img:
