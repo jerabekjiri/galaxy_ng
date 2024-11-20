@@ -94,9 +94,9 @@ jobs:
 #      - name: touch file
 #        run: touch ./test_dir/test_file
 
-      - run: ls -la /app
+#      - run: ls -la /app
 
-      - run: pwd
+#      - run: pwd
 
 #      - run: tree
 #
