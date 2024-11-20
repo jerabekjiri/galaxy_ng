@@ -93,8 +93,8 @@ jobs:
 #      - name: touch file
 #        run: touch ./test_dir/test_file
 
-#      - run: ls -la
-#
+      - run: ls -la /tmp
+
 #      - run: tree
 #
 #      - run: pwd

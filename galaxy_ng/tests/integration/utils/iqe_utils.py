@@ -443,6 +443,7 @@ class AnsibleConfigFixture(dict):
 
         # workaround for a weird error with the galaxy cli lib ...
         galaxy_token_fn = os.path.expanduser('~/.ansible/galaxy_token')
+        galaxy_token_fn = os.path.expanduser(os.getenv('GALAXY_TOKEN_PATH', '~/.ansible/galaxy_token'))
         if not os.path.exists(os.path.dirname(galaxy_token_fn)):
             os.makedirs(os.path.dirname(galaxy_token_fn))
         if not os.path.exists(galaxy_token_fn):
