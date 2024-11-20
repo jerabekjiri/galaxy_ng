@@ -53,14 +53,14 @@ jobs:
           echo "DJANGO_SUPERUSER_PASSWORD=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_PASSWORD')" >> $GITHUB_ENV
           echo "HUB_TEST_MARKS=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $HUB_TEST_MARKS')" >> $GITHUB_ENV
         
-          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'printenv'
+#          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'printenv'
 
-#      - name: create env vars
-#        run: |
-#          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'env' > .env
-#          cat .env
-#          cat .env >> $GITHUB_ENV
-#          cat $GITHUB_ENV
+      - name: create env vars
+        run: |
+          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'env' > .env
+          cat .env
+          cat .env >> $GITHUB_ENV
+          cat $GITHUB_ENV
 
 #      - name: printenv
 #        run: |
@@ -144,7 +144,7 @@ jobs:
 
       - name: install requirements
         run: |
-           docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'pip install -r integration_requirements.txt'
+           pip install -r integration_requirements.txt
 
       - name: parse correct profile
         run: |
@@ -160,7 +160,7 @@ jobs:
 
       - name: run tests
         run: |
-          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'pytest -v -r sx --color=yes -k "test_legacy_namespace_add_list_remove_aiindex" galaxy_ng/tests/integration'
+          pytest -v -r sx --color=yes -k 'test_social_auth_creates_legacynamespace' galaxy_ng/tests/integration
 
 
       # Note: COMPOSE_INTERACTIVE_NO_CLI=1 is required for oci-env to work correctly when there's no interactive terminal
