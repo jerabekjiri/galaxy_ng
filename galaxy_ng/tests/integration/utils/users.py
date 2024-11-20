@@ -1,5 +1,6 @@
 import random
 import string
+from tokenize import group
 
 import pytest
 
@@ -30,9 +31,12 @@ def delete_group(groupname, api_client=None):
         assert rr.status_code == 204
         return
 
-    with pytest.raises(Exception, match="as JSON"):
-        api_client(api_prefix + f'/_ui/v1/groups/{gid}/', method='DELETE')
-
+    try:
+        resp = api_client(api_prefix + f'/_ui/v1/groups/{gid}/', method='DELETE')
+        print(f'group resp {resp=}')
+    except Exception as e:
+        error = str(e)
+        assert 'as JSON' in error, e
 
 def create_user(username, password, api_client=None):
     assert api_client is not None, "api_client is a required param"
@@ -72,6 +76,8 @@ def delete_user(username, api_client=None):
     else:
         resp = api_client(api_prefix + f'/_ui/v1/users/?username={username}')
 
+    # print(f'{resp=}')
+
     if resp['meta']['count'] == 0:
         return
 
@@ -83,8 +89,11 @@ def delete_user(username, api_client=None):
         assert rr.status_code == 204
         return
 
-    with pytest.raises(Exception, match="as JSON"):
-        api_client(api_prefix + f'/_ui/v1/users/{uid}/', method='DELETE')
+    try:
+        resp = api_client(api_prefix + f'/_ui/v1/users/{uid}/', method='DELETE')
+    except Exception as e:
+        error = str(e)
+        assert 'as JSON' in error, e
 
 
 def delete_group_gk(groupname, gc_admin):

@@ -77,7 +77,7 @@ x-common-env: &common-env
   HUB_TEST_AUTHENTICATION_BACKEND: 'community'
   HUB_TEST_MARKS: 'deployment_community'
   HUB_API_ROOT: 'http://localhost:5001/api/'
-  GALAXY_TOKEN_PATH: '/tmp'
+  GALAXY_TOKEN_PATH: '/tmp/.ansible/galaxy_token'
 
   # Unpin dependencies on setup.py if set to 0
   LOCK_REQUIREMENTS: 0

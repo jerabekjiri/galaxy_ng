@@ -52,6 +52,7 @@ jobs:
           echo "DJANGO_SUPERUSER_USERNAME=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_USERNAME')" >> $GITHUB_ENV
           echo "DJANGO_SUPERUSER_PASSWORD=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_PASSWORD')" >> $GITHUB_ENV
           echo "HUB_TEST_MARKS=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $HUB_TEST_MARKS')" >> $GITHUB_ENV
+          echo "GALAXY_TOKEN_PATH=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $GALAXY_TOKEN_PATH')" >> $GITHUB_ENV
         
 #          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'printenv'
 
