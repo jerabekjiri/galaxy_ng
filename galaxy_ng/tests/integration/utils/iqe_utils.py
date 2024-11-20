@@ -449,7 +449,8 @@ class AnsibleConfigFixture(dict):
         # workaround for a weird error with the galaxy cli lib ...
         # galaxy_token_fn = os.path.expanduser('~/.ansible/galaxy_token')
         # galaxy_token_fn = os.path.expanduser('~/.ansible/galaxy_token')
-        galaxy_token_fn = os.path.expanduser('.ansible/galaxy_token')
+
+        galaxy_token_fn = os.path.expanduser('/app/.ansible/galaxy_token')
         # galaxy_token_fn = os.path.dirname()
         print('--------------galaxy token path-----------------------')
 
