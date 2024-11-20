@@ -450,10 +450,11 @@ class AnsibleConfigFixture(dict):
         # galaxy_token_fn = os.path.expanduser('~/.ansible/galaxy_token')
         # galaxy_token_fn = os.path.expanduser('~/.ansible/galaxy_token')
 
-        galaxy_token_fn = os.path.expanduser('/app/.ansible/galaxy_token')
+        # galaxy_token_fn = os.path.expanduser('/app/.ansible/galaxy_token')
         # galaxy_token_fn = os.path.dirname()
         print('--------------galaxy token path-----------------------')
 
+        galaxy_token_fn = './ansible/galaxy_token'
 
 
         if not os.path.exists(os.path.dirname(galaxy_token_fn)):
@@ -461,7 +462,7 @@ class AnsibleConfigFixture(dict):
             os.makedirs(os.path.dirname(galaxy_token_fn))
         if not os.path.exists(galaxy_token_fn):
             with open(galaxy_token_fn, 'w') as f:
-                print('--------------writing empty galxytoken fn-----------------------')
+                print('--------------writing empty galaxytoken fn-----------------------')
                 f.write('')
 
     def __hash__(self):

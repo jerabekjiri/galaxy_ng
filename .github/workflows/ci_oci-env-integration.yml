@@ -47,8 +47,6 @@ jobs:
         run: |
           docker compose -f dev/compose/community.yaml up --detach
 
-      - run: sudo chmod u+w /app
-
       - name: set env variables
         run: |
           echo "DJANGO_SUPERUSER_USERNAME=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_USERNAME')" >> $GITHUB_ENV
@@ -96,13 +94,19 @@ jobs:
 #      - name: touch file
 #        run: touch ./test_dir/test_file
 
-      - run: ls -la /tmp
+      - run: ls -la /app
+
+      - run: pwd
 
 #      - run: tree
 #
 #      - run: pwd
 
-#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir test_dir2'
+      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir test_dir2'
+
+      - run: ls -la
+
+      - run: pwd
 #
 #      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'touch test_dir2/test_file2'
 #
