@@ -174,7 +174,7 @@ jobs:
 
       - name: run tests
         run: |
-          pytest -v -r sx --color=yes -k 'test_social_auth_creates_legacynamespace' galaxy_ng/tests/integration
+          pytest -v -r sx --color=yes -m 'deployment_community' galaxy_ng/tests/integration
 
 
       # Note: COMPOSE_INTERACTIVE_NO_CLI=1 is required for oci-env to work correctly when there's no interactive terminal
