@@ -102,13 +102,16 @@ jobs:
 #
 #      - run: pwd
 
-      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir test_dir2'
+      - run: docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'mkdir test_dir2'
 
       - run: ls -la
+        working-directory: app
 
       - run: pwd
+        working-directory: app
 
-      - run: mkdir -p /app/.ansible/galaxy_token
+      - run: mkdir -p .ansible/galaxy_token
+        working-directory: app
 
 
 #
