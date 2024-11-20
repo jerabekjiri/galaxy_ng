@@ -45,7 +45,7 @@ jobs:
 
       - name: Spin up dev/compose/community.yaml
         run: |
-          docker compose -f dev/compose/community.yaml up --build --detach
+          docker compose -f dev/compose/community.yaml up --detach
 
       - name: set env variables
         run: |
@@ -58,7 +58,7 @@ jobs:
 
       - name: create env vars
         run: |
-          docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'env' > .env
+          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'env' > .env
           cat .env
           cat .env >> $GITHUB_ENV
           cat $GITHUB_ENV
