@@ -45,7 +45,7 @@ jobs:
 
       - name: Spin up dev/compose/community.yaml
         run: |
-          docker compose -f dev/compose/community.yaml up --detach
+          docker compose -f dev/compose/community.yaml up --build --detach
 
       - name: set env variables
         run: |
