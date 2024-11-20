@@ -107,6 +107,10 @@ jobs:
       - run: ls -la
 
       - run: pwd
+
+      - run: mkdir -p /app/.ansible/galaxy_token
+
+
 #
 #      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'touch test_dir2/test_file2'
 #
