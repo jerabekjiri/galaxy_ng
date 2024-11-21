@@ -6,6 +6,7 @@ x-common-env: &common-env
   DJANGO_SUPERUSER_USERNAME: admin
   DJANGO_SUPERUSER_EMAIL: admin@example.com
   DJANGO_SUPERUSER_PASSWORD: admin
+  DJANGO_SETTINGS_MODULE: pulpcore.app.settings
 
   POSTGRES_USER: galaxy_ng
   POSTGRES_PASSWORD: galaxy_ng
@@ -23,6 +24,7 @@ x-common-env: &common-env
   PULP_DATABASES__default__PORT: 5432
 
   PULP_DEBUG: 1
+  PULP_SETTINGS: '/etc/pulp/settings.py'
   PULP_GALAXY_DEPLOYMENT_MODE: 'standalone'
   PULP_DEFAULT_FILE_STORAGE: "pulpcore.app.models.storage.FileSystem"
   PULP_REDIRECT_TO_OBJECT_STORAGE: 'false'
@@ -77,7 +79,6 @@ x-common-env: &common-env
   HUB_TEST_AUTHENTICATION_BACKEND: 'community'
   HUB_TEST_MARKS: 'deployment_community'
   HUB_API_ROOT: 'http://localhost:5001/api/'
-  GALAXY_TOKEN_PATH: '/tmp/.ansible/galaxy_token'
 
   # Unpin dependencies on setup.py if set to 0
   LOCK_REQUIREMENTS: 0
