@@ -32,9 +32,9 @@ x-common-env: &common-env
   # Hostname and prefix has to be correct
   PULP_GALAXY_API_PATH_PREFIX: '/api/'
   PULP_CONTENT_PATH_PREFIX: '/pulp/content/'
-  PULP_ANSIBLE_API_HOSTNAME: 'https://localhost'
-  PULP_ANSIBLE_CONTENT_HOSTNAME: "https://localhost"
-  PULP_CONTENT_ORIGIN: "https://localhost"
+  PULP_ANSIBLE_API_HOSTNAME: 'http://localhost:5001'
+  PULP_ANSIBLE_CONTENT_HOSTNAME: "http://localhost:5001"
+  PULP_CONTENT_ORIGIN: "http://localhost:5001"
   PULP_CSRF_TRUSTED_ORIGINS: "['https://localhost']"
 
   # auth ...
@@ -87,8 +87,8 @@ x-common-env: &common-env
   # To enable editable to install local checkouts set DEV_SOURCE_PATH keeping the ordering as follows:
   # "dynaconf:pulpcore:galaxy_importer:pulp_ansible:pulp_container:galaxy_ng:django-ansible-base"
   # This can be done as part of the `docker compose` call:
-  # $ DEV_SOURCE_PATH="pulp_container:galaxy_ng" docker compose -f dev/compose/aap.yaml up
-  DEV_SOURCE_PATH:
+  # $ DEV_SOURCE_PATH="pulp_container:galaxy_ng" docker compose -f dev/compose/community.yaml up
+  DEV_SOURCE_PATH: 'galaxy_ng'
 
 services:
   base_img:

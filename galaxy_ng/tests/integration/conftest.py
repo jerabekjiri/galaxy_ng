@@ -729,11 +729,12 @@ def skip_if_not_require_signature_for_approval():
         pytest.skip("This test needs refactoring to work with signatures required on move.")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def docker_compose_exec():
     # if not require_signature_for_approval():
     #     pytest.skip("This test needs refactoring to work with signatures required on move.")
-    def _(cmd: str):
+    # def _(cmd: str):
+    def _exec(cmd: str):
         proc = subprocess.run(
             # "django-admin populate-role-tags",
             f"docker compose -f dev/compose/community.yaml exec manager /bin/bash -c '{cmd}'",
@@ -741,3 +742,5 @@ def docker_compose_exec():
             capture_output=True,
         )
         return proc
+
+    return _exec
