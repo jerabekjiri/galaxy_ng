@@ -6,6 +6,7 @@ x-common-env: &common-env
   DJANGO_SUPERUSER_USERNAME: admin
   DJANGO_SUPERUSER_EMAIL: admin@example.com
   DJANGO_SUPERUSER_PASSWORD: admin
+  DJANGO_SETTINGS_MODULE: pulpcore.app.settings
 
   POSTGRES_USER: galaxy_ng
   POSTGRES_PASSWORD: galaxy_ng
@@ -23,6 +24,7 @@ x-common-env: &common-env
   PULP_DATABASES__default__PORT: 5432
 
   PULP_DEBUG: 1
+  PULP_SETTINGS: '/etc/pulp/settings.py'
   PULP_GALAXY_DEPLOYMENT_MODE: 'standalone'
   PULP_DEFAULT_FILE_STORAGE: "pulpcore.app.models.storage.FileSystem"
   PULP_REDIRECT_TO_OBJECT_STORAGE: 'false'
@@ -30,9 +32,9 @@ x-common-env: &common-env
   # Hostname and prefix has to be correct
   PULP_GALAXY_API_PATH_PREFIX: '/api/'
   PULP_CONTENT_PATH_PREFIX: '/pulp/content/'
-  PULP_ANSIBLE_API_HOSTNAME: 'https://localhost'
-  PULP_ANSIBLE_CONTENT_HOSTNAME: "https://localhost"
-  PULP_CONTENT_ORIGIN: "https://localhost"
+  PULP_ANSIBLE_API_HOSTNAME: 'http://localhost:5001'
+  PULP_ANSIBLE_CONTENT_HOSTNAME: "http://localhost:5001"
+  PULP_CONTENT_ORIGIN: "http://localhost:5001"
   PULP_CSRF_TRUSTED_ORIGINS: "['https://localhost']"
 
   # auth ...
@@ -59,7 +61,7 @@ x-common-env: &common-env
   PULP_GALAXY_AUTO_SIGN_COLLECTIONS: 'false'
 
   # disable user/group modifications
-  PULP_ALLOW_LOCAL_RESOURCE_MANAGEMENT: 'false'
+  PULP_ALLOW_LOCAL_RESOURCE_MANAGEMENT: 'true'
 
   # role content workaround
   PULP_ANSIBLE_BASE_ROLES_REQUIRE_VIEW: 'false'
@@ -74,8 +76,9 @@ x-common-env: &common-env
   # PULP_RESOURCE_SERVER__VALIDATE_HTTPS='false'
 
   # Integration test settings
-  HUB_TEST_AUTHENTICATION_BACKEND: "community"
-  HUB_TEST_MARKS: "deployment_community"
+  HUB_TEST_AUTHENTICATION_BACKEND: 'community'
+  HUB_TEST_MARKS: 'deployment_community'
+  HUB_API_ROOT: 'http://localhost:5001/api/'
 
   # Unpin dependencies on setup.py if set to 0
   LOCK_REQUIREMENTS: 0
@@ -84,9 +87,8 @@ x-common-env: &common-env
   # To enable editable to install local checkouts set DEV_SOURCE_PATH keeping the ordering as follows:
   # "dynaconf:pulpcore:galaxy_importer:pulp_ansible:pulp_container:galaxy_ng:django-ansible-base"
   # This can be done as part of the `docker compose` call:
-  # $ DEV_SOURCE_PATH="pulp_container:galaxy_ng" docker compose -f dev/compose/aap.yaml up
-  DEV_SOURCE_PATH:
-
+  # $ DEV_SOURCE_PATH="pulp_container:galaxy_ng" docker compose -f dev/compose/community.yaml up
+  DEV_SOURCE_PATH: 'galaxy_ng'
 
 services:
   base_img:

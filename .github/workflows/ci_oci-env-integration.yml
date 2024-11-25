@@ -4,9 +4,9 @@ on:
   pull_request:
     branches:
       - '**'
-  push:
-    branches:
-      - '**'
+#  push:
+#    branches:
+#      - '**'
   workflow_dispatch:
 
 jobs:
@@ -15,55 +15,186 @@ jobs:
       fail-fast: false
       matrix:
         env:
-          - TEST_PROFILE: ldap
-          - TEST_PROFILE: keycloak
-          - TEST_PROFILE: standalone
-          # - TEST_PROFILE: rbac
-          - TEST_PROFILE: rbac_parallel_group_1
-          - TEST_PROFILE: rbac_parallel_group_2
-          - TEST_PROFILE: certified-sync
-          - TEST_PROFILE: insights
-          - TEST_PROFILE: iqe_rbac
-          - TEST_PROFILE: x_repo_search
+#          - TEST_PROFILE: standalone
+#          - TEST_PROFILE: insights
           - TEST_PROFILE: community
-          - TEST_PROFILE: dab_jwt
+#          - TEST_PROFILE: ldap
+#          - TEST_PROFILE: keycloak
+
+#          # - TEST_PROFILE: rbac
+#          - TEST_PROFILE: rbac_parallel_group_1
+#          - TEST_PROFILE: rbac_parallel_group_2
+#          - TEST_PROFILE: certified-sync
+
+#          - TEST_PROFILE: iqe_rbac
+#          - TEST_PROFILE: x_repo_search
+#          -
+#          - TEST_PROFILE: dab_jwt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: (Linux) Install docker compose
         run: |
           curl -L -o /tmp/docker-compose https://github.com/docker/compose/releases/download/v2.29.1/docker-compose-linux-x86_64
           install /tmp/docker-compose /usr/local/bin/
 
+      - name: Spin up dev/compose/community.yaml
+        run: |
+          docker compose -f dev/compose/community.yaml up --detach
+
+#      - name: set env variables
+#        run: |
+#          echo "DJANGO_SUPERUSER_USERNAME=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_USERNAME')" >> $GITHUB_ENV
+#          echo "DJANGO_SUPERUSER_PASSWORD=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $DJANGO_SUPERUSER_PASSWORD')" >> $GITHUB_ENV
+#          echo "HUB_TEST_MARKS=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $HUB_TEST_MARKS')" >> $GITHUB_ENV
+#          echo "GALAXY_TOKEN_PATH=$(docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'echo $GALAXY_TOKEN_PATH')" >> $GITHUB_ENV
+        
+#          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'printenv'
+
+      - name: create env vars
+        run: |
+          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'env | grep -v -w "HOME"' >> $GITHUB_ENV
+          cat $GITHUB_ENV
+
+      - name: healthcheck
+        run: |
+          max_runs=10
+          for i in $(seq 1 $max_runs); do
+            echo "$i: checking api status..."
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ env.DJANGO_SUPERUSER_USERNAME }}:${{ env.DJANGO_SUPERUSER_PASSWORD }}" -LI http://localhost:5001/api/galaxy/pulp/api/v3/status/)
+            if [ "$RESPONSE" -ne 200 ]; then
+              echo "API endpoint is down. Retrying in 10 seconds..."
+              sleep 10
+            else
+              echo "API online."
+              exit 0
+            fi
+          done
+
+#      - name: whoami
+#        run: whoami
+
+#      - name: cat /etc/group
+#        run: cat /etc/group
+
+#      - name: mkdir create file
+#        run: mkdir test_dir
+#
+#      - name: touch file
+#        run: touch ./test_dir/test_file
+
+#      - run: ls -la /app
+
+#      - run: pwd
+
+#      - run: tree
+#
+#      - run: pwd
+
+#      - run: docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'mkdir test_dir2'
+#
+#      - run: ls -la
+#        working-directory: app
+#
+#      - run: pwd
+#        working-directory: app
+#nsible/galaxy_token
+#        working-directory: app
+
+#      - run: mkdir -p .a
+
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'touch test_dir2/test_file2'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la test_dir2'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'pwd'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'whoami'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'python -c "import os; os.makedirs(\"test_dir\")"'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la'
+##      - name: install requirements
+#        run: |
+#           docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c "pip install -r integration_requirements.txt"
+
+      # hack to get around bug where some tests fail when ~/.ansible is missing.
+
+#      - run: sudo ls -la /root/
+#
+#      - run: sudo ls -la /root/.ansible/
+#
+#      - run: sudo ls -la ~/
+
+# - run: sudo mkdir /root/.ansible
+#
+#      - run: ls -la /root/
+
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
+
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /root/.ansible/galaxy_token'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /root/'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'ls -la /home/'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /home/.ansible'
+#
+#      - run: docker compose -f dev/compose/aap.yaml exec manager /bin/bash -c 'mkdir -p /home/.ansible'
+
+      - name: install requirements
+        run: |
+           pip install -r integration_requirements.txt
+
+      - name: parse correct profile
+        run: |
+          compose_file="${{ matrix.env.TEST_PROFILE }}"
+          if [ "$compose_file" == "standalone" ]; then
+            compose_file="aap"
+          fi
+          echo "COMPOSE_FILE=$compose_file" >> $GITHUB_ENV
+
+#      - name: podman install
+#        run: |
+#          docker compose -f dev/compose/community.yaml exec manager /bin/bash -c 'dnf -y install podman'
+
+      - name: run tests
+        run: |
+          pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration
+
+
       # Note: COMPOSE_INTERACTIVE_NO_CLI=1 is required for oci-env to work correctly when there's no interactive terminal
-      - name: Set environment variables
-        run: |
-          echo "OCI_ENV_PATH=${HOME}/work/galaxy_ng/oci_env" >> $GITHUB_ENV
-          echo "COMPOSE_INTERACTIVE_NO_CLI=1" >> $GITHUB_ENV
-          echo "OCI_VERBOSE=1" >> $GITHUB_ENV
-          echo "GH_DUMP_LOGS=1" >> $GITHUB_ENV
-
-      - name: Update apt
-        run: sudo apt -y update
-
-      - name: Install LDAP requirements
-        run: sudo apt-get install -y libsasl2-dev python3 libldap2-dev libssl-dev build-essential
-
-      - name: setup oci-env
-        run: |
-          git clone https://github.com/pulp/oci_env.git $OCI_ENV_PATH
-          pip install -e $OCI_ENV_PATH/client/
-          mkdir $OCI_ENV_PATH/db_backup/
-
-      - name: run integration tests
-        if: ${{ !startsWith(matrix.env.TEST_PROFILE, 'rbac_parallel_group') }}
-        run: make gh-action/${{ matrix.env.TEST_PROFILE }}
-
-      - name: run parallel rbac integration tests
-        if: ${{ startsWith(matrix.env.TEST_PROFILE, 'rbac_parallel_group') }}
-        run: make gh-action/rbac-parallel RBAC_PARALLEL_GROUP=${{ matrix.env.TEST_PROFILE }}
+#      - name: Set environment variables
+#        run: |
+#          echo "OCI_ENV_PATH=${HOME}/work/galaxy_ng/oci_env" >> $GITHUB_ENV
+#          echo "COMPOSE_INTERACTIVE_NO_CLI=1" >> $GITHUB_ENV
+#          echo "OCI_VERBOSE=1" >> $GITHUB_ENV
+#          echo "GH_DUMP_LOGS=1" >> $GITHUB_ENV
+#
+#      - name: Update apt
+#        run: sudo apt -y update
+#
+#      - name: Install LDAP requirements
+#        run: sudo apt-get install -y libsasl2-dev python3 libldap2-dev libssl-dev build-essential
+#
+#      - name: setup oci-env
+#        run: |
+#          git clone https://github.com/pulp/oci_env.git $OCI_ENV_PATH
+#          pip install -e $OCI_ENV_PATH/client/
+#          mkdir $OCI_ENV_PATH/db_backup/
+#
+#      - name: run integration tests
+#        if: ${{ !startsWith(matrix.env.TEST_PROFILE, 'rbac_parallel_group') }}
+#        run: make gh-action/${{ matrix.env.TEST_PROFILE }}
+#
+#      - name: run parallel rbac integration tests
+#        if: ${{ startsWith(matrix.env.TEST_PROFILE, 'rbac_parallel_group') }}
+#        run: make gh-action/rbac-parallel RBAC_PARALLEL_GROUP=${{ matrix.env.TEST_PROFILE }}

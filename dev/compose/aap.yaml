@@ -79,6 +79,10 @@ x-common-env: &common-env
   # $ DEV_SOURCE_PATH="pulp_container:galaxy_ng" docker compose -f dev/compose/aap.yaml up
   DEV_SOURCE_PATH:
 
+  HUB_API_ROOT: http://api:24817/api/galaxy/
+
+  HUB_TEST_MARKS: deployment_standalone or all
+
 
 services:
   base_img:
@@ -86,6 +90,7 @@ services:
       context: ../../
       dockerfile: Dockerfile
     image: "localhost/galaxy_ng/galaxy_ng:base"
+#    privileged: true
 
   base_img_dev:  # Extends base_img with extra files and dev tools
     depends_on:
@@ -96,12 +101,15 @@ services:
       args:
         <<: *common-env
     image: "localhost/galaxy_ng/galaxy_ng:dev"
+#    privileged: true
 
   redis:
     image: "redis:5"
+#    privileged: true
 
   postgres:
     image: "postgres:13"
+#    privileged: true
     ports:
       - '5433:5432'
     environment:
@@ -116,6 +124,7 @@ services:
 
   migrations:
     image: "localhost/galaxy_ng/galaxy_ng:dev"
+#    privileged: true
     depends_on:
       - base_img_dev
       - postgres
@@ -143,6 +152,7 @@ services:
 
   api:
     image: "localhost/galaxy_ng/galaxy_ng:dev"
+#    privileged: true
     depends_on:
       - base_img_dev
       - postgres
@@ -170,6 +180,7 @@ services:
 
   content:
     image: "localhost/galaxy_ng/galaxy_ng:dev"
+#    privileged: true
     depends_on:
       - base_img_dev
       - postgres
@@ -197,6 +208,7 @@ services:
 
   worker:
     image: "localhost/galaxy_ng/galaxy_ng:dev"
+#    privileged: true
     depends_on:
       - base_img_dev
       - postgres
@@ -222,6 +234,7 @@ services:
 
   manager:
     image: "localhost/galaxy_ng/galaxy_ng:dev"
+    privileged: true
     depends_on:
       - base_img_dev
       - postgres
