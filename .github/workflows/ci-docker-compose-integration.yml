@@ -19,8 +19,8 @@ jobs:
 #          - TEST_PROFILE: keycloak
 #          - TEST_PROFILE: standalone
 #          # - TEST_PROFILE: rbac
-#          - TEST_PROFILE: rbac_parallel_group_1
-#          - TEST_PROFILE: rbac_parallel_group_2
+          - TEST_PROFILE: rbac_parallel_group_1
+          - TEST_PROFILE: rbac_parallel_group_2
 #          - TEST_PROFILE: certified-sync
           - TEST_PROFILE: insights
 #          - TEST_PROFILE: iqe_rbac
@@ -41,7 +41,21 @@ jobs:
           curl -L -o /tmp/docker-compose https://github.com/docker/compose/releases/download/v2.29.1/docker-compose-linux-x86_64
           install /tmp/docker-compose /usr/local/bin/
 
-      - name: Spin up dev/compose/${{ matrix.env.TEST_PROFILE }}.yaml
+      - name: Set correct profile file
+        run: |
+          # use default standalone.yaml
+          DOCKER_COMPOSE_FILE="standalone"
+          non_standalone_profiles=("insights" "community")
+
+          # for non standalone profiles
+          if [[ $(echo ${non_standalone_profiles[@]} | grep -F -w "${{ matrix.env.TEST_PROFILE }}") ]]
+          then
+            DOCKER_COMPOSE_FILE="${{ matrix.env.TEST_PROFILE }}"
+          fi
+
+          echo "$DOCKER_COMPOSE_FILE" >> $GITHUB_ENV
+
+      - name: Spin up dev/compose/${{ env.TEST_PROFILE }}.yaml
         run: |
           docker compose -f dev/compose/${{ matrix.env.TEST_PROFILE }}.yaml up --detach
 
@@ -66,9 +80,11 @@ jobs:
           done
 
       - name: Install integration requirements
+        if: ${{ !startsWith(matrix.env.TEST_PROFILE, 'rbac_parallel_group') }}
         run: |
           pip install -r integration_requirements.txt
 
       - name: Run integration tests
+        if: ${{ startsWith(matrix.env.TEST_PROFILE, 'rbac_parallel_group') }}
         run: |
           pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration
