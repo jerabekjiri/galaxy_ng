@@ -80,11 +80,9 @@ jobs:
           done
 
       - name: Install integration requirements
-        if: ${{ !startsWith(matrix.env.TEST_PROFILE, 'rbac_parallel_group') }}
         run: |
           pip install -r integration_requirements.txt
 
       - name: Run integration tests
-        if: ${{ startsWith(matrix.env.TEST_PROFILE, 'rbac_parallel_group') }}
         run: |
           pytest -v -r sx --color=yes -m '${{ env.HUB_TEST_MARKS }}' galaxy_ng/tests/integration
