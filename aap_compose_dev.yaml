@@ -22,11 +22,13 @@ x-common-env: &common-env
   PULP_DEBUG: 1
   PULP_GALAXY_DEPLOYMENT_MODE: 'standalone'
   PULP_DEFAULT_FILE_STORAGE: "pulpcore.app.models.storage.FileSystem"
+  PULP_REDIRECT_TO_OBJECT_STORAGE: 'false'
 
   # Hostname and prefix has to be correct
   PULP_GALAXY_API_PATH_PREFIX: '/api/galaxy/'
+  PULP_CONTENT_PATH_PREFIX: '/pulp/content/'
   PULP_ANSIBLE_API_HOSTNAME: 'https://localhost'
-  PULP_ANSIBLE_CONTENT_HOSTNAME: "https://localhost/pulp/content"
+  PULP_ANSIBLE_CONTENT_HOSTNAME: "https://localhost"
   PULP_CONTENT_ORIGIN: "https://localhost"
   PULP_CSRF_TRUSTED_ORIGINS: "['https://localhost']"
 
@@ -70,13 +72,16 @@ services:
 
   postgres:
     image: "postgres:13"
+    ports:
+      - '5433:5432'
     environment:
       <<: *common-env
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "galaxy_ng"]
       interval: 10s
       retries: 5
- 
+    command: ["postgres", "-c", "log_statement=all", "-c", "log_destination=stderr"]
+
   helper:
     image: quay.io/centos/centos:stream9
     environment:
@@ -148,6 +153,9 @@ services:
       <<: *common-env
     extra_hosts:
       localhost: "host-gateway"
+    networks:
+      - default
+      - service-mesh
     command: |
       bash -c "
         while [[ ! -f /var/lib/pulp/.migrated ]]; do
@@ -171,6 +179,9 @@ services:
       <<: *common-env
     extra_hosts:
       localhost: "host-gateway"
+    networks:
+      - default
+      - service-mesh
     command: |
       bash -c "
         while [[ ! -f /var/lib/pulp/.migrated ]]; do
@@ -220,7 +231,6 @@ volumes:
   etc_pulp_certs:
     name: etc_pulp_certs 
 
-#networks:
-#  dbnet:
-#  service-mesh:
-#    name: service-mesh
+networks:
+  service-mesh:
+    name: service-mesh
