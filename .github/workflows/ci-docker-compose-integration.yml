@@ -15,7 +15,8 @@ jobs:
       fail-fast: false
       matrix:
         env:
-          - { TEST_PROFILE: standalone, HUB_TEST_MARKS: "deployment_standalone or all" }
+#         - { TEST_PROFILE: standalone, HUB_TEST_MARKS: "deployment_standalone or all" }
+          - { TEST_PROFILE: ldap, HUB_TEST_MARKS: "deployment_standalone or all or ldap" }
 
     runs-on: ubuntu-latest
     steps:
