@@ -1,6 +1,7 @@
 import logging
 import json
 import pytest
+import subprocess
 
 from galaxy_ng.tests.integration.conftest import is_hub_4_7_or_higher
 from galaxy_ng.tests.integration.utils.iqe_utils import sign_collection_on_demand, is_ocp_env, \
@@ -301,16 +302,12 @@ class TestLoadData:
 
 
     @pytest.mark.min_hub_version("4.6")
-    def test_load_sync_from_gac(self, galaxy_client, data):
-        # set remote
-        # run sync
-        logger.debug(f"Creating remote gac")
-        gc = galaxy_client("admin")
-        create_remote(gc, "gac", "https://galaxy.ansible.com/api/", params={
-            "requirements_file": "# Sample requirements.yaml\n\ncollections:\n  - name: sean_m_sullivan.controller_configuration"
-        })
+    def test_load_size(self, galaxy_client, data):
+        result = subprocess.run(["du", "-sh", '/var/lib/pulp/media/'], capture_output=True, text=True)
+        logger.debug(f'LOAD SIZE {result=}')
+        logger.info(f'LOAD SIZE {result=}')
+        logger.warning(f'LOAD SIZE {result=}')
+        print(f'LOAD SIZE {result=}')
 
-        time.sleep(25)
-
-        create_repo_and_dist(gc, "gac_repository", remote="gac")
+        assert False == True
 

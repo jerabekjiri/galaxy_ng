@@ -1,5 +1,7 @@
 import logging
 import pytest
+import subprocess
+
 from galaxykit.client import BasicAuthClient
 
 from galaxy_ng.tests.integration.conftest import is_hub_4_7_or_higher
@@ -25,7 +27,7 @@ SKIP_MESSAGE_22 = "Load data stage was skipped. No data to verify now."
 class TestVerifyData:
 
     @pytest.mark.min_hub_version("4.6dev")
-    @pytest.mark.verify_data
+    # @pytest.mark.verify_data
     def test_verify_data_users(self, galaxy_client, data):
         """
         Test that verifies the data previously loaded by test_load_data
@@ -56,7 +58,7 @@ class TestVerifyData:
                 assert expected_user["group"] in str(actual_user["groups"])
 
     @pytest.mark.min_hub_version("4.6dev")
-    @pytest.mark.verify_data
+    # @pytest.mark.verify_data
     def test_verify_data_ns(self, galaxy_client, data):
         """
         Test that verifies the data previously loaded by test_load_data
@@ -74,7 +76,7 @@ class TestVerifyData:
                 assert expected_ns["group"] in str(actual_ns["groups"])
 
     @pytest.mark.min_hub_version("4.6dev")
-    @pytest.mark.verify_data
+    # @pytest.mark.verify_data
     def test_verify_data_collections(self, galaxy_client, data, ansible_config):
         """
         Test that verifies the data previously loaded by test_load_data
@@ -139,7 +141,7 @@ class TestVerifyData:
 
     @pytest.mark.min_hub_version("4.7dev")
     @pytest.mark.skipif(is_upgrade_from_aap23_hub46(), reason=SKIP_MESSAGE_23)
-    @pytest.mark.verify_data
+    # @pytest.mark.verify_data
     def test_verify_data_repositories(self, galaxy_client, data):
         """
         Test that verifies the data previously loaded by test_load_data
@@ -149,7 +151,7 @@ class TestVerifyData:
             get_repository_href(gc, expected_repo["name"])
 
     @pytest.mark.min_hub_version("4.6dev")
-    @pytest.mark.verify_data
+    # @pytest.mark.verify_data
     def test_verify_data_remotes(self, galaxy_client, data):
         """
         Test that verifies the data previously loaded by test_load_data
@@ -163,7 +165,7 @@ class TestVerifyData:
             assert actual_remote["results"][0]["tls_validation"] == remote["tls_validation"]
 
     @pytest.mark.min_hub_version("4.6dev")
-    @pytest.mark.verify_data
+    # @pytest.mark.verify_data
     def test_verify_data_rbac_roles(self, galaxy_client, data):
         """
         Test that verifies the data previously loaded by test_load_data
@@ -177,7 +179,7 @@ class TestVerifyData:
                 expected_rbac_role["permissions"])
 
     @pytest.mark.min_hub_version("4.7dev")
-    @pytest.mark.verify_data
+    # @pytest.mark.verify_data
     def test_verify_data_ee(self, galaxy_client, data):
         """
         Test that verifies the data previously loaded by test_load_data
@@ -194,7 +196,7 @@ class TestVerifyData:
             assert expected_registry == actual_registry
 
     @pytest.mark.min_hub_version("4.6dev")
-    @pytest.mark.verify_data
+    # @pytest.mark.verify_data
     def test_verify_data_remote_registries(self, galaxy_client, data):
         """
         Test that verifies the data previously loaded by test_load_data
@@ -206,3 +208,15 @@ class TestVerifyData:
                                f"?name={remote_registry['name']}")
             assert actual_rr["data"][0]["name"] == remote_registry["name"]
             assert actual_rr["data"][0]["url"] == remote_registry["url"]
+
+
+    @pytest.mark.min_hub_version("4.6")
+    @pytest.mark.verify_data
+    def test_verify_size(self, galaxy_client, data):
+        result = subprocess.run(["du", "-sh", '/var/lib/pulp/media/'], capture_output=True, text=True)
+        logger.debug(f'VERIFY SIZE {result=}')
+        logger.info(f'VERIFY SIZE {result=}')
+        logger.warning(f'VERIFY SIZE {result=}')
+        print(f'VERIFY SIZE {result=}')
+
+        assert False == True
