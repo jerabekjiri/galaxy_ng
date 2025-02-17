@@ -18,6 +18,7 @@ from galaxykit.users import update_user
 from galaxykit.utils import GalaxyClientError, wait_for_task
 from galaxykit.client import BasicAuthClient
 
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ class TestLoadData:
     @pytest.mark.skipif(not aap_gateway(),
                         reason="Load data test was skipped. Only works with gateway enabled.")
     @pytest.mark.min_hub_version("4.6")
-    @pytest.mark.load_data
+    # @pytest.mark.load_data
     def test_load_gw_users_and_teams(self, galaxy_client, data):
         gc = galaxy_client("admin")
         gw_client = BasicAuthClient(gc.galaxy_root, gc.username, gc.password)
@@ -128,7 +129,7 @@ class TestLoadData:
             assert team_assignment['user'] == updated_user['id']
 
     @pytest.mark.min_hub_version("4.6")
-    @pytest.mark.load_data
+    # @pytest.mark.load_data
     def test_load_namespaces(self, galaxy_client, data):
         gc = galaxy_client("admin")
 
@@ -164,7 +165,7 @@ class TestLoadData:
                           object_roles=["galaxy.collection_namespace_owner"])
 
     @pytest.mark.min_hub_version("4.7")
-    @pytest.mark.load_data
+    # @pytest.mark.load_data
     def test_load_repositories(self, galaxy_client, data):
         gc = galaxy_client("admin")
 
@@ -180,7 +181,7 @@ class TestLoadData:
                     raise e
 
     @pytest.mark.min_hub_version("4.6")
-    @pytest.mark.load_data
+    # @pytest.mark.load_data
     def test_load_remotes(self, galaxy_client, data):
         gc = galaxy_client("admin")
         for remote in data["remotes"]:
@@ -199,7 +200,7 @@ class TestLoadData:
                     raise e
 
     @pytest.mark.min_hub_version("4.6")
-    @pytest.mark.load_data
+    # @pytest.mark.load_data
     def test_load_collections(self, galaxy_client, data, ansible_config):
         gc = galaxy_client("admin")
 
@@ -236,7 +237,7 @@ class TestLoadData:
                     raise e
 
     @pytest.mark.min_hub_version("4.6")
-    @pytest.mark.load_data
+    # @pytest.mark.load_data
     def test_load_roles(self, galaxy_client, data):
         gc = galaxy_client("admin")
 
@@ -260,7 +261,7 @@ class TestLoadData:
                     raise e
 
     @pytest.mark.min_hub_version("4.6")
-    @pytest.mark.load_data
+    # @pytest.mark.load_data
     def test_load_remote_registries(self, galaxy_client, data):
         gc = galaxy_client("admin")
 
@@ -278,7 +279,7 @@ class TestLoadData:
                     raise e
 
     @pytest.mark.min_hub_version("4.6")
-    @pytest.mark.load_data
+    # @pytest.mark.load_data
     def test_load_execution_environments(self, galaxy_client, data):
         gc = galaxy_client("admin")
 
@@ -297,3 +298,19 @@ class TestLoadData:
                                      ee["remote_registry"])
                 else:
                     raise e
+
+
+    @pytest.mark.min_hub_version("4.6")
+    def test_load_sync_from_gac(self, galaxy_client, data):
+        # set remote
+        # run sync
+        logger.debug(f"Creating remote gac")
+        gc = galaxy_client("admin")
+        create_remote(gc, "gac", "https://galaxy.ansible.com/api/", params={
+            "requirements_file": "# Sample requirements.yaml\n\ncollections:\n  - name: sean_m_sullivan.controller_configuration"
+        })
+
+        time.sleep(25)
+
+        create_repo_and_dist(gc, "gac_repository", remote="gac")
+
