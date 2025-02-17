@@ -302,6 +302,7 @@ class TestLoadData:
 
 
     @pytest.mark.min_hub_version("4.6")
+    @pytest.mark.load_data
     def test_load_size(self, galaxy_client, data):
         result = subprocess.run(["du", "-sh", '/var/lib/pulp/media/'], capture_output=True, text=True)
         logger.debug(f'LOAD SIZE {result=}')
@@ -310,4 +311,5 @@ class TestLoadData:
         print(f'LOAD SIZE {result=}')
 
         assert False == True
+
 
