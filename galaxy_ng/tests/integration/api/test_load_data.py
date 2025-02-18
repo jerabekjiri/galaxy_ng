@@ -2,6 +2,7 @@ import logging
 import json
 import pytest
 import subprocess
+import os
 
 from galaxy_ng.tests.integration.conftest import is_hub_4_7_or_higher
 from galaxy_ng.tests.integration.utils.iqe_utils import sign_collection_on_demand, is_ocp_env, \
@@ -303,13 +304,53 @@ class TestLoadData:
 
     @pytest.mark.min_hub_version("4.6")
     @pytest.mark.load_data
+    def test_load_sync_from_gac(self, galaxy_client, data):
+        gc = galaxy_client("admin")
+        remote = gc.get("pulp/api/v3/remotes/ansible/collection/?name=community")["results"][0]
+        
+        logger.warning(f'{remote=}')
+
+        update = gc.patch(
+            remote["pulp_href"],
+            body={
+                "requirements_file": "# Sample requirements.yaml\n\ncollections:\n  - name: sean_m_sullivan.controller_configuration"
+            }
+        )
+        logger.warning(f'{update=}')
+
+        wait_for_task(gc, update)
+
+        repo = gc.get("pulp/api/v3/repositories/ansible/ansible/?name=community")["results"][0]
+        logger.warning(f'{repo=}')
+
+        dispatch = gc.post(f'{repo["pulp_href"]}sync/', body={})
+        logger.warning(f'{dispatch=}')
+
+        assert False == True
+
+
+    @pytest.mark.min_hub_version("4.6")
+    @pytest.mark.load_data
     def test_load_size(self, galaxy_client, data):
-        result = subprocess.run(["du", "-sh", '/var/lib/pulp/media/'], capture_output=True, text=True)
+        logger.warning(f'BEFORE: {os.getcwd()=}')
+        os.chdir("/")
+
+        logger.warning(f'AFTER: {os.getcwd()=}')
+        
+        podman_ps = subprocess.run(["sudo", "-u", "ansible", "podman", "ps"])
+        logger.warning(f'{podman_ps=}')
+
+        podman_exec = subprocess.run([
+            "sudo", "-u", "ansible",
+            "podman", "exec", "-it", "automation-hub-api",
+            "/bin/bash", "-c", "'du -sh /var/lib/pulp/media/'"
+        ])
+        logger.warning(f'{podman_exec=}')
+
+        result = subprocess.run(["sudo", "-u", "ansible", "du", "-sh", '/var/lib/pulp/media/'], capture_output=True, text=True)
         logger.debug(f'LOAD SIZE {result=}')
         logger.info(f'LOAD SIZE {result=}')
         logger.warning(f'LOAD SIZE {result=}')
         print(f'LOAD SIZE {result=}')
 
         assert False == True
-
-
