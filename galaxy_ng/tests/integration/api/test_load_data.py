@@ -337,14 +337,14 @@ class TestLoadData:
 
         logger.warning(f'AFTER: {os.getcwd()=}')
         
-        podman_ps = subprocess.run(["sudo", "-u", "ansible", "podman", "ps"])
+        podman_ps = subprocess.run(["sudo", "-u", "ansible", "podman", "ps"], capture_output=True, text=True)
         logger.warning(f'{podman_ps=}')
 
         podman_exec = subprocess.run([
             "sudo", "-u", "ansible",
             "podman", "exec", "-it", "automation-hub-api",
             "/bin/bash", "-c", "'du -sh /var/lib/pulp/media/'"
-        ])
+        ], capture_output=True, text=True)
         logger.warning(f'{podman_exec=}')
 
         result = subprocess.run(["sudo", "-u", "ansible", "du", "-sh", '/var/lib/pulp/media/'], capture_output=True, text=True)
