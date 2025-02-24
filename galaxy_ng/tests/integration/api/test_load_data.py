@@ -326,6 +326,18 @@ class TestLoadData:
         dispatch = gc.post(f'{repo["pulp_href"]}sync/', body={})
         logger.warning(f'{dispatch=}')
 
+        wait_for_task(gc, dispatch)
+
+        delete = gc.delete("v3/plugin/ansible/content/community/collections/index/sean_m_sullivan/controller_configuration/")
+        logger.warning(f'{delete=}')
+        wait_for_task(gc, delete)
+
+        artifacts = gc.get("pulp/api/v3/artifacts/")["results"]
+        logger.warning(f'{artifacts=}')
+
+        col_versions = gc.get("v3/plugin/ansible/search/collection-versions/")["results"]
+        logger.warning(f'{col_versions=}')
+
         assert False == True
 
 
