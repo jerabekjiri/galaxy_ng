@@ -1,10 +1,10 @@
 ---
+# Opens a PR with newly marked translation strings on the first day of each month.
 name: "[i18n] Update translations"
 
 on:
-  # allow running manually
   workflow_dispatch:
-  # run weekly
+  # run monthly
   schedule:
     - cron: '30 5 1 * *'
 
@@ -31,7 +31,7 @@ jobs:
         run: sudo apt -y update
 
       - name: Install LDAP requirements
-        run: sudo apt-get install -y libsasl2-dev libldap2-dev libssl-dev build-essential gettext python-setuptools
+        run: sudo apt-get install -y libsasl2-dev libldap2-dev libssl-dev build-essential gettext python3-setuptools
 
       - name: Upgrade pip
         run: pip install pip --upgrade
