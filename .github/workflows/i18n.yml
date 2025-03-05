@@ -25,7 +25,9 @@ jobs:
           ref: ${{ matrix.branch }}
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
 
       - name: Update apt
         run: sudo apt -y update
@@ -78,6 +80,6 @@ jobs:
             No-Issue
           body: |
             No-Issue
-          title: "[i18n] Update translations ${{ env.NOW }}"
+          title: "[i18n][{{matrix.branch}}] Update translations ${{ env.NOW }}"
           branch: i18n/${{ matrix.branch }}/update-translations-${{ env.NOW }}
           base: ${{ matrix.branch }}
