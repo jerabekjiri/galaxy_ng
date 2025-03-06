@@ -44,6 +44,9 @@ jobs:
           cd galaxy_ng
           django-admin makemessages --all
 
+      - name: Clear fuzzy entries
+        run: bash .github/workflows/scripts/clear_fuzzy_entries.sh
+
       - name: Check if files were updated
         run: |
           filesChanged=$(git diff --ignore-matching-lines=POT-Creation-Date)
@@ -54,9 +57,6 @@ jobs:
               echo "openPR=true" >> $GITHUB_ENV
           fi
         shell: bash
-
-      - name: Clear fuzzy entries
-        run: bash .github/workflows/scripts/clear_fuzzy_entries.sh
 
       - name: Compile strings
         run: |
